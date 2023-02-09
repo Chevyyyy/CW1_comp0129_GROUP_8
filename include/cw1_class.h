@@ -8,7 +8,29 @@ solution is contained within the cw1_team_<your_team_number> package */
 #define CW1_CLASS_H_
 
 // system includes
+#include <stdlib.h>
 #include <ros/ros.h>
+#include <iostream>
+// messages includes
+#include <geometry_msgs/PoseStamped.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/Point.h>
+#include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/Quaternion.h>
+// PCL includes
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
+// Moveit includes
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <moveit/planning_scene_interface/planning_scene_interface.h>
+#include <moveit_msgs/CollisionObject.h>
+// TF specific includes
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Scalar.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_ros/transform_listener.h>
 
 // include services from the spawner package - we will be responding to these
 #include "cw1_world_spawner/Task1Service.h"
@@ -37,6 +59,22 @@ public:
   bool 
   t3_callback(cw1_world_spawner::Task3Service::Request &request,
     cw1_world_spawner::Task3Service::Response &response);
+  
+  // added
+  void
+  cloudCallBack (const sensor_msgs::PointCloud2ConstPtr& cloud_input_msg);
+  bool 
+  moveArm(geometry_msgs::Pose target_pose);
+  bool
+  moveGripper(float width);
+  void
+  addCollisionObject(std::string object_name,geometry_msgs::Point centre, geometry_msgs::Vector3 dimensions,geometry_msgs::Quaternion orientation);
+  void
+  removeCollisionObject(std::string object_name);
+  bool
+  pick(geometry_msgs::Point position);
+  bool
+  place(geometry_msgs::Point position);
 
   /* ----- class member variables ----- */
 
@@ -44,6 +82,18 @@ public:
   ros::ServiceServer t1_service_;
   ros::ServiceServer t2_service_;
   ros::ServiceServer t3_service_;
+
+  // added
+  int input_pc_width_;
+  moveit::planning_interface::MoveGroupInterface arm_group_{"panda_arm"};
+  moveit::planning_interface::MoveGroupInterface hand_group_{"hand"};
+  moveit::planning_interface::PlanningSceneInterface planning_scene_interface_;
+  float gripper_open_ = 80e-3;
+  float gripper_closed_ = 0.0;
+
+  double angle_offset_ = 3.14159 / 4.0;
+  double z_offset_ = 0.125;
+  double approach_distance_ = 0.1;
 };
 
 #endif // end of include guard for CW1_CLASS_H_

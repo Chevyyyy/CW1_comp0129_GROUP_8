@@ -17,6 +17,12 @@ int main(int argc, char **argv){
   ros::AsyncSpinner spinner(1);
   spinner.start();
 
+  // Create a ROS subscriber for the input point cloud
+  ros::Subscriber sub_cloud =
+    nh.subscribe ("/r200/camera/depth_registered/points",
+                  1,
+                  &cw1::cloudCallBack,
+                  &cw_class);
   // loop rate in Hz
   ros::Rate rate(10);
 
