@@ -57,28 +57,21 @@ cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
   // ---
   // string[] basket_colours
 
-  // int n = sizeof(request.basket_locs);
-  // printf("%d",n);
-  // for (int i = 0; i < 4; i++) 
-  // {
-  //   printf("i:%d\n", i);
-  //   geometry_msgs::Point point = request.basket_locs[i].point;
-  //   printf("x:%f,y:%f,z:%f \n",point.x, point.y, point.z);
-    
-  //   bool success = place(point);
-  // }
 
-    // geometry_msgs::Point place_point = request.basket_locs[0].point;
-    // bool success = place(place_point);
+  for (int i = 0; i < 4; i++) 
+  {
+    geometry_msgs::Point place_point = request.basket_locs[i].point;
+    bool success = place(place_point);
+    ros::Duration(1, 0).sleep();
 
     //change basket position in world frame to camera frame
     geometry_msgs::PointStamped camera_point;
+    
     try
     {
-      listener_.transformPoint ("panda_link0",
-                                  request.basket_locs[0],
-                                  camera_point);
-      //ROS_INFO ("trying transform...");
+      listener_.transformPoint ("color",
+                                request.basket_locs[i],
+                                camera_point);
     }
     catch (tf::TransformException& ex)
     {
@@ -93,7 +86,6 @@ cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
     printf("y_target:%f,\n", target_position.y);
     printf("z_target:%f,\n", target_position.z);
 
-    ros::Duration(1, 0).sleep();
     int nearestIndex = getNearestPoint(*g_cloud_ptr, target_position);
     PointT color = (*g_cloud_ptr).points[nearestIndex];
     printf("x:%f,\n", color.x);
@@ -101,7 +93,17 @@ cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
     printf("z:%f,\n", color.z);
     printf("r:%d,\n", color.r);
     printf("g:%d,\n", color.g);
-    printf("b:%d,\n", color.b);
+    printf("b:%d,\n", color.b);  
+
+    if(color.r>100 && color.b>100)
+      response.basket_colours[i] = "pink";
+    else if (color.r>100)
+      response.basket_colours[i] = "red";
+    else if (color.b>100)
+      response.basket_colours[i] = "blue";
+    else
+      response.basket_colours[i] = "empty";
+  }
 
   ROS_INFO("The coursework solving callback for task 2 has been triggered");
 
