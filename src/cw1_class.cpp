@@ -4,13 +4,15 @@ and starting from scratch. The only requirment is to make sure your entire
 solution is contained within the cw1_team_<your_team_number> package */
 
 #include <cw1_class.h>
+///////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////
 
-cw1::cw1(ros::NodeHandle nh)
+
+cw1::cw1(ros::NodeHandle nh):
+  g_cloud_ptr (new PointC)
 {
   /* class constructor */
-
+  // PointC g_cloud_ptr (new PointC); 
   nh_ = nh;
   
   // advertise solutions for coursework tasks
@@ -54,18 +56,52 @@ cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
   // geometry_msgs/PointStamped[] basket_locs
   // ---
   // string[] basket_colours
-  int n = sizeof(request.basket_locs);
-  printf("%d",n);
-  for (int i = 0; i < 4; i++) 
-  {
-    printf("i:%d\n", i);
-    geometry_msgs::Point point = request.basket_locs[i].point;
-    printf("x:%f,y:%f,z:%f \n",point.x, point.y, point.z);
-    
-    bool success = place(point);
-  }
 
-  
+  // int n = sizeof(request.basket_locs);
+  // printf("%d",n);
+  // for (int i = 0; i < 4; i++) 
+  // {
+  //   printf("i:%d\n", i);
+  //   geometry_msgs::Point point = request.basket_locs[i].point;
+  //   printf("x:%f,y:%f,z:%f \n",point.x, point.y, point.z);
+    
+  //   bool success = place(point);
+  // }
+
+    // geometry_msgs::Point place_point = request.basket_locs[0].point;
+    // bool success = place(place_point);
+
+    //change basket position in world frame to camera frame
+    geometry_msgs::PointStamped camera_point;
+    try
+    {
+      listener_.transformPoint ("panda_link0",
+                                  request.basket_locs[0],
+                                  camera_point);
+      //ROS_INFO ("trying transform...");
+    }
+    catch (tf::TransformException& ex)
+    {
+      ROS_ERROR ("Received a trasnformation exception: %s", ex.what());
+    }
+
+    pcl::PointXYZRGBA target_position;
+    target_position.x = camera_point.point.x;
+    target_position.y = camera_point.point.y;
+    target_position.z = camera_point.point.z;
+    printf("x_target:%f,\n", target_position.x);
+    printf("y_target:%f,\n", target_position.y);
+    printf("z_target:%f,\n", target_position.z);
+
+    ros::Duration(1, 0).sleep();
+    int nearestIndex = getNearestPoint(*g_cloud_ptr, target_position);
+    PointT color = (*g_cloud_ptr).points[nearestIndex];
+    printf("x:%f,\n", color.x);
+    printf("y:%f,\n", color.y);
+    printf("z:%f,\n", color.z);
+    printf("r:%d,\n", color.r);
+    printf("g:%d,\n", color.g);
+    printf("b:%d,\n", color.b);
 
   ROS_INFO("The coursework solving callback for task 2 has been triggered");
 
@@ -96,15 +132,13 @@ cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
 
 
 void
-cw1::cloudCallBack(const sensor_msgs::PointCloud2ConstPtr &cloud_input_msg)
+cw1::pcCallBack(const sensor_msgs::PointCloud2ConstPtr &cloud_input_msg)
 {
   // Extract inout point cloud info
-  input_pc_width_ = cloud_input_msg->width;
-  // printf("width:%d", g_input_pc_frame_id_);
-    
+  g_input_pc_frame_id = cloud_input_msg->header.frame_id;
   // Convert to PCL data type
-  // pcl_conversions::toPCL (*cloud_input_msg, g_pcl_pc);
-  // pcl::fromPCLPointCloud2 (g_pcl_pc, *g_cloud_ptr);
+  pcl_conversions::toPCL (*cloud_input_msg, g_pcl_pc);
+  pcl::fromPCLPointCloud2 (g_pcl_pc, *g_cloud_ptr);
 
 }
 
@@ -327,7 +361,7 @@ cw1::place(geometry_msgs::Point position)
   geometry_msgs::Pose place_pose;
   place_pose.position = position;
   place_pose.orientation = place_orientation;
-  place_pose.position.z = 0.3;
+  place_pose.position.z = 0.55;
 
   /* Now perform the place */
 
@@ -342,4 +376,18 @@ cw1::place(geometry_msgs::Point position)
   success *= moveGripper(gripper_open_);
 
   return true;
+}
+
+
+int
+cw1::getNearestPoint(const PointC& cloud, const pcl::PointXYZRGBA& position)
+{
+  pcl::KdTreeFLANN<pcl::PointXYZRGBA> kdtree;
+  kdtree.setInputCloud(cloud.makeShared());
+  int k = 1;
+  std::vector<int> indices(k);
+  std::vector<float> distances(k);
+  kdtree.nearestKSearch(position, k, indices, distances);
+
+  return indices[0];
 }

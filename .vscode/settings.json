@@ -8,5 +8,8 @@
         "/home/horrylee/comp0129_s23_robot/devel/lib/python3/dist-packages",
         "/opt/ros/noetic/lib/python3/dist-packages"
     ],
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "files.associations": {
+        "iostream": "cpp"
+    }
 }

@@ -11,17 +11,23 @@ solution is contained within the cw1_team_<your_team_number> package */
 #include <stdlib.h>
 #include <ros/ros.h>
 #include <iostream>
+#include <ros/time.h>
 // messages includes
-#include <geometry_msgs/PoseStamped.h>
-#include <sensor_msgs/PointCloud2.h>
 #include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/Vector3.h>
 #include <geometry_msgs/Quaternion.h>
+#include <sensor_msgs/PointCloud2.h>
 // PCL includes
-#include <pcl_ros/point_cloud.h>
+#include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_types.h>
-#include <pcl/point_cloud.h>
+#include <pcl/PCLPointCloud2.h>
+#include <pcl/conversions.h>
+#include <pcl/kdtree/kdtree_flann.h>
+
 // Moveit includes
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
@@ -30,8 +36,7 @@ solution is contained within the cw1_team_<your_team_number> package */
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Scalar.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <tf2_ros/transform_listener.h>
-
+#include <tf/transform_listener.h>
 // include services from the spawner package - we will be responding to these
 #include "cw1_world_spawner/Task1Service.h"
 #include "cw1_world_spawner/Task2Service.h"
@@ -39,6 +44,10 @@ solution is contained within the cw1_team_<your_team_number> package */
 
 // // include any services created in this package
 // #include "cw1_team_x/example.h"
+
+typedef pcl::PointXYZRGBA PointT;
+typedef pcl::PointCloud<PointT> PointC;
+typedef PointC::Ptr PointCPtr;
 
 class cw1
 {
@@ -62,7 +71,7 @@ public:
   
   // added
   void
-  cloudCallBack (const sensor_msgs::PointCloud2ConstPtr& cloud_input_msg);
+  pcCallBack (const sensor_msgs::PointCloud2ConstPtr& cloud_input_msg);
   bool 
   moveArm(geometry_msgs::Pose target_pose);
   bool
@@ -75,6 +84,8 @@ public:
   pick(geometry_msgs::Point position);
   bool
   place(geometry_msgs::Point position);
+  int
+  getNearestPoint(const PointC& cloud, const pcl::PointXYZRGBA& position);
 
   /* ----- class member variables ----- */
 
@@ -83,8 +94,7 @@ public:
   ros::ServiceServer t2_service_;
   ros::ServiceServer t3_service_;
 
-  // added
-  int input_pc_width_;
+  // added for task 1
   moveit::planning_interface::MoveGroupInterface arm_group_{"panda_arm"};
   moveit::planning_interface::MoveGroupInterface hand_group_{"hand"};
   moveit::planning_interface::PlanningSceneInterface planning_scene_interface_;
@@ -94,6 +104,14 @@ public:
   double angle_offset_ = 3.14159 / 4.0;
   double z_offset_ = 0.125;
   double approach_distance_ = 0.1;
+
+  //added for task 2
+  std::string g_input_pc_frame_id;
+  pcl::PCLPointCloud2 g_pcl_pc;
+  PointCPtr g_cloud_ptr;
+  tf::TransformListener listener_;
+
+
 };
 
 #endif // end of include guard for CW1_CLASS_H_

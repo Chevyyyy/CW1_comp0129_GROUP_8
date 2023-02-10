@@ -16,11 +16,13 @@ find_package(catkin REQUIRED COMPONENTS
   tf2
   tf2_ros
   pcl_ros
+  pcl_conversions
   cw1_world_spawner
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+find_package(PCL REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -124,6 +126,7 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
 
 # Declare a C++ library
@@ -160,7 +163,9 @@ add_dependencies(cw1_solution_node
 # Specify libraries to link a library or executable target against
 target_link_libraries(cw1_solution_node
   ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
   ${PROJECT_NAME}_cw1_class_lib
+
 )
 
 #############
