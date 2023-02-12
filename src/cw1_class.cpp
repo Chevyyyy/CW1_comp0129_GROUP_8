@@ -74,7 +74,6 @@ cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
   // ---
   // string[] basket_colours
 
-  std::string result[4];
   response.basket_colours.clear();
   for (int i = 0; i < 4; i++) 
   {
@@ -93,7 +92,7 @@ cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
     }
     catch (tf::TransformException& ex)
     {
-      ROS_ERROR ("Received a trasnformation exception: %s", ex.what());
+      //ROS_WARN ("Received a trasnformation exception: %s", ex.what());
     }
 
     pcl::PointXYZRGBA pointT_cameraframe;
@@ -108,13 +107,13 @@ cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
     printf("b:%d,\n", pointT_est_cameraframe.b);
 
 
-    if(pointT_est_cameraframe.r>100 && pointT_est_cameraframe.b>100)  
-      response.basket_colours.push_back("pink");
-    else if (pointT_est_cameraframe.r>100)
+    if (pointT_est_cameraframe.r/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.b/pointT_est_cameraframe.g<5)
       response.basket_colours.push_back("red");
-    else if (pointT_est_cameraframe.b>100)
+    else if (pointT_est_cameraframe.b/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.r/pointT_est_cameraframe.g<5)
       response.basket_colours.push_back("blue");
-    else
+    else if (pointT_est_cameraframe.b/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.r/pointT_est_cameraframe.g>5)
+      response.basket_colours.push_back("pink");
+    else 
       response.basket_colours.push_back("empty");
 
   }
