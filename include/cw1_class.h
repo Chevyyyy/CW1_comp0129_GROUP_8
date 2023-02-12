@@ -9,9 +9,11 @@ solution is contained within the cw1_team_<your_team_number> package */
 
 // system includes
 #include <stdlib.h>
-#include <ros/ros.h>
 #include <iostream>
+#include <math.h>
+#include <ros/ros.h>
 #include <ros/time.h>
+
 // messages includes
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -27,6 +29,18 @@ solution is contained within the cw1_team_<your_team_number> package */
 #include <pcl/PCLPointCloud2.h>
 #include <pcl/conversions.h>
 #include <pcl/kdtree/kdtree_flann.h>
+
+#include <pcl/common/centroid.h>
+#include <pcl/point_cloud.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/search/kdtree.h>
+#include <pcl/segmentation/sac_segmentation.h>
 
 // Moveit includes
 #include <moveit/move_group_interface/move_group_interface.h>
@@ -84,9 +98,22 @@ public:
   pick(geometry_msgs::Point position);
   bool
   place(geometry_msgs::Point position);
+  bool
+  arm_go(geometry_msgs::Point position);
   int
   getNearestPoint(const PointC& cloud, const pcl::PointXYZRGBA& position);
-
+  void
+  pubFilteredPCMsg (ros::Publisher &pc_pub, PointC &pc);
+  void
+  applyPT (PointCPtr &in_cloud_ptr, PointCPtr &out_cloud_ptr);
+  void
+  findNormals (PointCPtr &in_cloud_ptr);
+  void
+  segPlane (PointCPtr &in_cloud_ptr);
+  void
+  segCylind (PointCPtr &in_cloud_ptr);
+  void
+  findCylPose (PointCPtr &in_cloud_ptr);
   /* ----- class member variables ----- */
 
   ros::NodeHandle nh_;
@@ -111,7 +138,33 @@ public:
   PointCPtr g_cloud_ptr;
   tf::TransformListener listener_;
 
-
+  //
+  ros::Publisher g_pub_cloud;
+  sensor_msgs::PointCloud2 g_cloud_filtered_msg;
+  //
+  pcl::PassThrough<PointT> g_pt; //Pass Through filter.
+  PointCPtr g_cloud_filtered;
+  double g_pt_thrs_min, g_pt_thrs_max;
+  //
+  pcl::NormalEstimation<PointT, pcl::Normal> g_ne;
+  pcl::search::KdTree<PointT>::Ptr g_tree;
+  double g_k_nn;
+  pcl::PointCloud<pcl::Normal>::Ptr g_cloud_normals;
+  //   
+  pcl::SACSegmentationFromNormals<PointT, pcl::Normal> g_seg;  // SAC segmentation.
+  pcl::PointIndices::Ptr g_inliers_plane; // Point indices for plane
+  pcl::ModelCoefficients::Ptr g_coeff_plane; // Model coefficients for the plane segmentation.
+  pcl::ExtractIndices<PointT> g_extract_pc; //Extract point cloud indices.
+  PointCPtr g_cloud_plane; // Point cloud to hold plane
+  PointCPtr g_cloud_filtered2;
+  pcl::ExtractIndices<pcl::Normal> g_extract_normals; //Extract point cloud normal indices.
+  pcl::PointCloud<pcl::Normal>::Ptr g_cloud_normals2; //Cloud of normals
+  //
+  pcl::PointIndices::Ptr g_inliers_cylinder; //Point indices for cylinder
+  pcl::ModelCoefficients::Ptr g_coeff_cylinder; //Model coefficients for the culinder segmentation
+  PointCPtr g_cloud_cylinder; //Point cloud to hold cylinder points.
+  //
+  geometry_msgs::PointStamped g_cyl_pt_msg;
 };
 
 #endif // end of include guard for CW1_CLASS_H_

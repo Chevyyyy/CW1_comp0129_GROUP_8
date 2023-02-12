@@ -9,12 +9,25 @@ solution is contained within the cw1_team_<your_team_number> package */
 
 
 cw1::cw1(ros::NodeHandle nh):
-  g_cloud_ptr (new PointC)
+  g_cloud_ptr (new PointC),
+  g_cloud_filtered (new PointC),
+  g_tree (new pcl::search::KdTree<PointT> ()), // KdTree
+  g_cloud_normals (new pcl::PointCloud<pcl::Normal>), // segmentation
+  g_inliers_plane (new pcl::PointIndices), // plane seg
+  g_coeff_plane (new pcl::ModelCoefficients), // plane coeff
+  g_cloud_plane (new PointC), // plane point cloud
+  g_cloud_filtered2 (new PointC), // filtered point cloud
+  g_cloud_normals2 (new pcl::PointCloud<pcl::Normal>),// segmentation
+  g_inliers_cylinder (new pcl::PointIndices), // cylidenr seg
+  g_coeff_cylinder (new pcl::ModelCoefficients), // cylinder coeff
+  g_cloud_cylinder (new PointC)// cylinder point cloud
+
 {
   /* class constructor */
-  // PointC g_cloud_ptr (new PointC); 
   nh_ = nh;
-  
+
+  g_pub_cloud = nh.advertise<sensor_msgs::PointCloud2> ("cw1/filtered_cloud", 1, true);
+
   // advertise solutions for coursework tasks
   t1_service_  = nh_.advertiseService("/task1_start", 
     &cw1::t1_callback, this);
@@ -22,6 +35,10 @@ cw1::cw1(ros::NodeHandle nh):
     &cw1::t2_callback, this);
   t3_service_  = nh_.advertiseService("/task3_start",
     &cw1::t3_callback, this);
+
+  g_pt_thrs_min = 0.0; // PassThrough min thres
+  g_pt_thrs_max = 0.7; // PassThrough max thres
+  g_k_nn = 50; // Normals nn size
 
   ROS_INFO("cw1 class initialised");
 }
@@ -57,52 +74,55 @@ cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
   // ---
   // string[] basket_colours
 
-
+  std::string result[4];
+  response.basket_colours.clear();
   for (int i = 0; i < 4; i++) 
   {
-    geometry_msgs::Point place_point = request.basket_locs[i].point;
-    bool success = place(place_point);
-    ros::Duration(1, 0).sleep();
+    geometry_msgs::Point point_worldframe = request.basket_locs[i].point;
+    bool success = arm_go(point_worldframe);
+    // ros::Duration(3, 0).sleep();
 
     //change basket position in world frame to camera frame
-    geometry_msgs::PointStamped camera_point;
+    geometry_msgs::PointStamped point_cameraframe;
     
     try
     {
       listener_.transformPoint ("color",
                                 request.basket_locs[i],
-                                camera_point);
+                                point_cameraframe);
     }
     catch (tf::TransformException& ex)
     {
       ROS_ERROR ("Received a trasnformation exception: %s", ex.what());
     }
 
-    pcl::PointXYZRGBA target_position;
-    target_position.x = camera_point.point.x;
-    target_position.y = camera_point.point.y;
-    target_position.z = camera_point.point.z;
-    printf("x_target:%f,\n", target_position.x);
-    printf("y_target:%f,\n", target_position.y);
-    printf("z_target:%f,\n", target_position.z);
+    pcl::PointXYZRGBA pointT_cameraframe;
+    pointT_cameraframe.x = point_cameraframe.point.x;
+    pointT_cameraframe.y = point_cameraframe.point.y;
+    pointT_cameraframe.z = point_cameraframe.point.z;
 
-    int nearestIndex = getNearestPoint(*g_cloud_ptr, target_position);
-    PointT color = (*g_cloud_ptr).points[nearestIndex];
-    printf("x:%f,\n", color.x);
-    printf("y:%f,\n", color.y);
-    printf("z:%f,\n", color.z);
-    printf("r:%d,\n", color.r);
-    printf("g:%d,\n", color.g);
-    printf("b:%d,\n", color.b);  
+    int nearestIndex = getNearestPoint(*g_cloud_ptr, pointT_cameraframe);
+    PointT pointT_est_cameraframe = (*g_cloud_ptr).points[nearestIndex]; 
+    printf("r:%d,\n", pointT_est_cameraframe.r);
+    printf("g:%d,\n", pointT_est_cameraframe.g);
+    printf("b:%d,\n", pointT_est_cameraframe.b);
 
-    if(color.r>100 && color.b>100)
-      response.basket_colours[i] = "pink";
-    else if (color.r>100)
-      response.basket_colours[i] = "red";
-    else if (color.b>100)
-      response.basket_colours[i] = "blue";
+
+    if(pointT_est_cameraframe.r>100 && pointT_est_cameraframe.b>100)  
+      response.basket_colours.push_back("pink");
+    else if (pointT_est_cameraframe.r>100)
+      response.basket_colours.push_back("red");
+    else if (pointT_est_cameraframe.b>100)
+      response.basket_colours.push_back("blue");
     else
-      response.basket_colours[i] = "empty";
+      response.basket_colours.push_back("empty");
+
+  }
+
+  for (int i = 0; i < 4; i++)
+  {
+    printf(response.basket_colours[i].data());
+    printf("\n");
   }
 
   ROS_INFO("The coursework solving callback for task 2 has been triggered");
@@ -119,15 +139,12 @@ cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
   /* function which should solve task 3 */
   ROS_INFO("The coursework solving callback for task 3 has been triggered");
   
-  // geometry_msgs::Pose target;
-  // target.position.x = 0.42;
-  // target.position.y = 0.2;
-  // target.position.z = 0.55;
-  // target.orientation.x =  0.924;
-  // target.orientation.y = -0.383;
-  // target.orientation.z = 0;
-  // target.orientation.w = 0;
-  // bool success_target1 = moveArm(target);
+  geometry_msgs::Point point_worldframe;
+  point_worldframe.x = 0.42;
+  point_worldframe.y = 0.2;
+  bool success = arm_go(point_worldframe);
+
+  
 
   return true;
 }
@@ -142,6 +159,15 @@ cw1::pcCallBack(const sensor_msgs::PointCloud2ConstPtr &cloud_input_msg)
   pcl_conversions::toPCL (*cloud_input_msg, g_pcl_pc);
   pcl::fromPCLPointCloud2 (g_pcl_pc, *g_cloud_ptr);
 
+  applyPT (g_cloud_ptr, g_cloud_filtered);
+  
+  // Segment plane and cylinder
+  findNormals (g_cloud_filtered);
+  segPlane (g_cloud_filtered);
+  segCylind (g_cloud_filtered);
+  // findCylPose (g_cloud_cylinder);
+
+  pubFilteredPCMsg (g_pub_cloud, *g_cloud_cylinder);
 }
 
 
@@ -347,8 +373,7 @@ cw1::pick(geometry_msgs::Point position)
 bool
 cw1::place(geometry_msgs::Point position)
 {
-  /* This function picks up an object using a pose. The given point is where the
-  centre of the gripper fingers will converge */
+  /* This function plcae an object to specicfic position. */
 
   // define placeing as from above
   tf2::Quaternion q_x180deg(-1, 0, 0, 0);
@@ -363,7 +388,7 @@ cw1::place(geometry_msgs::Point position)
   geometry_msgs::Pose place_pose;
   place_pose.position = position;
   place_pose.orientation = place_orientation;
-  place_pose.position.z = 0.55;
+  place_pose.position.z = 0.4;
 
   /* Now perform the place */
 
@@ -380,6 +405,41 @@ cw1::place(geometry_msgs::Point position)
   return true;
 }
 
+bool
+cw1::arm_go(geometry_msgs::Point position)
+{
+  /* This function move arm to a specicfic position. */
+
+  // define placeing as from above
+  tf2::Quaternion q_x180deg(-1, 0, 0, 0);
+  // determine the placeing orientation
+  tf2::Quaternion q_object;
+  q_object.setRPY(0, 0, angle_offset_);
+  tf2::Quaternion q_result = q_x180deg * q_object;
+  geometry_msgs::Quaternion place_orientation = tf2::toMsg(q_result);
+
+  // set the desired place pose
+  geometry_msgs::Pose place_pose;
+  place_pose.position = position;
+  place_pose.orientation = place_orientation;
+  place_pose.position.z = 0.55;
+  /* Now perform the place */
+  bool success = true;
+  // move the arm above the basket
+  success *= moveArm(place_pose);
+  
+  ros::Duration(3, 0).sleep();
+  // success *= moveGripper(gripper_open_);
+  // success *= moveGripper(gripper_closed_);
+
+  ROS_INFO("Arm reach the specific position");
+
+  return true;
+}
+
+
+////////////////////////////////////////////////////////
+//PCL
 
 int
 cw1::getNearestPoint(const PointC& cloud, const pcl::PointXYZRGBA& position)
@@ -392,4 +452,160 @@ cw1::getNearestPoint(const PointC& cloud, const pcl::PointXYZRGBA& position)
   kdtree.nearestKSearch(position, k, indices, distances);
 
   return indices[0];
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void
+cw1::pubFilteredPCMsg (ros::Publisher &pc_pub, PointC &pc)
+{
+  // Publish the data
+  pcl::toROSMsg(pc, g_cloud_filtered_msg);
+  pc_pub.publish (g_cloud_filtered_msg);
+  
+  return;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+void
+cw1::applyPT (PointCPtr &in_cloud_ptr, PointCPtr &out_cloud_ptr)
+{
+  g_pt.setInputCloud (in_cloud_ptr);
+  g_pt.setFilterFieldName ("z");
+  g_pt.setFilterLimits (g_pt_thrs_min, g_pt_thrs_max);
+  g_pt.filter (*out_cloud_ptr);
+  
+  return;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void
+cw1::findNormals (PointCPtr &in_cloud_ptr)
+{
+  // Estimate point normals
+  g_ne.setInputCloud (in_cloud_ptr);
+  g_ne.setSearchMethod (g_tree);
+  g_ne.setKSearch (g_k_nn);
+  g_ne.compute (*g_cloud_normals);
+  
+  return;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void
+cw1::segPlane (PointCPtr &in_cloud_ptr)
+{
+  // Create the segmentation object for the planar model
+  // and set all the params
+  g_seg.setOptimizeCoefficients (true);
+  g_seg.setModelType (pcl::SACMODEL_NORMAL_PLANE);
+
+  /*Set the relative weight (between 0 and 1) to give to the angular
+  distance (0 to pi/2) between point normals and the plane normal.*/ 
+  g_seg.setNormalDistanceWeight (0); //bad style
+
+  g_seg.setMethodType (pcl::SAC_RANSAC);
+
+  //Set the maximum number of iterations before giving up. 
+  g_seg.setMaxIterations (100);//bad style
+
+  //Distance to the model threshold (user given parameter). 
+  g_seg.setDistanceThreshold (0.03); //bad style
+
+  g_seg.setInputCloud (in_cloud_ptr);
+  g_seg.setInputNormals (g_cloud_normals);
+  // Obtain the plane inliers and coefficients
+  g_seg.segment (*g_inliers_plane, *g_coeff_plane);
+  
+  // Extract the planar inliers from the input cloud
+  g_extract_pc.setInputCloud (in_cloud_ptr);
+  g_extract_pc.setIndices (g_inliers_plane);
+  g_extract_pc.setNegative (false);
+  
+  // Write the planar inliers to disk
+  g_extract_pc.filter (*g_cloud_plane);
+  
+  // Remove the planar inliers, extract the rest
+  g_extract_pc.setNegative (true);
+  g_extract_pc.filter (*g_cloud_filtered2);
+  g_extract_normals.setNegative (true);
+  g_extract_normals.setInputCloud (g_cloud_normals);
+  g_extract_normals.setIndices (g_inliers_plane);
+  g_extract_normals.filter (*g_cloud_normals2);
+
+  //ROS_INFO_STREAM ("Plane coefficients: " << *g_coeff_plane);
+  ROS_INFO_STREAM ("PointCloud representing the planar component: "
+                   << g_cloud_plane->size ()
+                   << " data points.");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void
+cw1::segCylind (PointCPtr &in_cloud_ptr)
+{
+  // Create the segmentation object for cylinder segmentation
+  // and set all the parameters
+  g_seg.setOptimizeCoefficients (true);
+  g_seg.setModelType (pcl::SACMODEL_CYLINDER);
+  g_seg.setMethodType (pcl::SAC_RANSAC);
+
+  g_seg.setNormalDistanceWeight (0); //bad style
+  g_seg.setMaxIterations (500); //bad style
+  g_seg.setDistanceThreshold (0.03); //bad style
+  
+  /*Set the minimum and maximum allowable radius limits 
+  for the model (applicable to models that estimate a radius) */
+
+  g_seg.setRadiusLimits (0, 0.1); //bad style
+  g_seg.setInputCloud (g_cloud_filtered2);
+  g_seg.setInputNormals (g_cloud_normals2);
+
+  // Obtain the cylinder inliers and coefficients
+  g_seg.segment (*g_inliers_cylinder, *g_coeff_cylinder);
+  
+  // Write the cylinder inliers to disk
+  g_extract_pc.setInputCloud (g_cloud_filtered2);
+  g_extract_pc.setIndices (g_inliers_cylinder);
+  g_extract_pc.setNegative (false);
+  g_extract_pc.filter (*g_cloud_cylinder);
+  
+  ROS_INFO_STREAM ("PointCloud representing the cylinder component: "
+                   << g_cloud_cylinder->size ()
+                   << " data points.");
+  
+  return;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void
+cw1::findCylPose (PointCPtr &in_cloud_ptr)
+{
+  Eigen::Vector4f centroid_in;
+  pcl::compute3DCentroid(*in_cloud_ptr, centroid_in);
+  
+  g_cyl_pt_msg.header.frame_id = g_input_pc_frame_id;
+  g_cyl_pt_msg.header.stamp = ros::Time (0);
+  g_cyl_pt_msg.point.x = centroid_in[0];
+  g_cyl_pt_msg.point.y = centroid_in[1];
+  g_cyl_pt_msg.point.z = centroid_in[2];
+  
+  // Transform the point to new frame
+  geometry_msgs::PointStamped g_cyl_pt_msg_out;
+  try
+  {
+    listener_.transformPoint ("panda_link0",  // bad styling
+                                g_cyl_pt_msg,
+                                g_cyl_pt_msg_out);
+    //ROS_INFO ("trying transform...");
+  }
+  catch (tf::TransformException& ex)
+  {
+    ROS_ERROR ("Received a trasnformation exception: %s", ex.what());
+  }
+  
+  printf("x:%f\n",g_cyl_pt_msg_out.point.x);
+  printf("y:%f\n",g_cyl_pt_msg_out.point.y);
+  printf("z:%f\n",g_cyl_pt_msg_out.point.z);
+  
+  return;
 }
