@@ -20,7 +20,10 @@ cw1::cw1(ros::NodeHandle nh):
   g_cloud_normals2 (new pcl::PointCloud<pcl::Normal>),// segmentation
   g_inliers_cylinder (new pcl::PointIndices), // cylidenr seg
   g_coeff_cylinder (new pcl::ModelCoefficients), // cylinder coeff
-  g_cloud_cylinder (new PointC)// cylinder point cloud
+  g_cloud_cylinder (new PointC),// cylinder point cloud
+  basket_pos1_ptr (new geometry_msgs::Point), 
+  basket_pos2_ptr (new geometry_msgs::Point),
+  basket_pos3_ptr (new geometry_msgs::Point)
 
 {
   /* class constructor */
@@ -79,7 +82,6 @@ cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
   {
     geometry_msgs::Point point_worldframe = request.basket_locs[i].point;
     bool success = arm_go(point_worldframe);
-    // ros::Duration(3, 0).sleep();
 
     //change basket position in world frame to camera frame
     geometry_msgs::PointStamped point_cameraframe;
@@ -137,13 +139,73 @@ cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
 {
   /* function which should solve task 3 */
   ROS_INFO("The coursework solving callback for task 3 has been triggered");
-  
+  bool success = true;
   geometry_msgs::Point point_worldframe;
-  point_worldframe.x = 0.42;
-  point_worldframe.y = 0.2;
-  bool success = arm_go(point_worldframe);
 
-  
+  // point_worldframe.x = 0.30;
+  // point_worldframe.y = 0.30;
+  // success = arm_go(point_worldframe);
+
+
+
+  // findCylPose (g_cloud_cylinder, basket_pos1_ptr);
+  // printf("x:%f\n",(*basket_pos1_ptr).x);
+  // printf("y:%f\n",(*basket_pos1_ptr).y);
+  // printf("z:%f\n",(*basket_pos1_ptr).z);
+
+  // point_worldframe.x = 0.60;
+  // point_worldframe.y = 0.30;
+  // success = arm_go(point_worldframe);
+  // findCylPose (g_cloud_cylinder);
+
+  // point_worldframe.x = 0.60;
+  // point_worldframe.y = -0.30;
+  // success = arm_go(point_worldframe);
+  // findCylPose (g_cloud_cylinder);
+
+  // point_worldframe.x = 0.30;
+  // point_worldframe.y = -0.30;
+  // success = arm_go(point_worldframe);
+  // findCylPose (g_cloud_cylinder);
+
+  point_worldframe.x = 0.45;
+  point_worldframe.y = 0;
+  success = arm_go(point_worldframe);
+
+
+  // go to check https://pcl.readthedocs.io/en/latest/cluster_extraction.html
+  std::vector<pcl::PointIndices> cluster_indices;
+  pcl::EuclideanClusterExtraction<PointT> euclidean_cluster_extraction;
+
+  pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>);
+  tree->setInputCloud (g_cloud_cylinder);
+
+  euclidean_cluster_extraction.setClusterTolerance (0.02); // 2 cm
+  euclidean_cluster_extraction.setMinClusterSize (100);
+  euclidean_cluster_extraction.setMaxClusterSize (25000);
+  euclidean_cluster_extraction.setSearchMethod (tree);
+  euclidean_cluster_extraction.setInputCloud (g_cloud_cylinder);
+  euclidean_cluster_extraction.extract (cluster_indices);
+
+
+  int j = 0;   
+  for (const auto& cluster : cluster_indices)
+  {
+    printf("Cluster_index:%d\n",j+1);
+    PointCPtr cloud_cluster (new PointC);
+    for (const auto& idx : cluster.indices) 
+    {
+      cloud_cluster->push_back((*g_cloud_cylinder)[idx]);
+    } 
+    cloud_cluster->width = cloud_cluster->size ();
+    cloud_cluster->height = 1;
+    cloud_cluster->is_dense = true;
+    findCylPose (cloud_cluster, basket_pos1_ptr);
+ 
+    std::cout << "PointCloud representing the Cluster: " << cloud_cluster->size () << " data points." << std::endl;
+    j++;
+}
+
 
   return true;
 }
@@ -555,7 +617,7 @@ cw1::segCylind (PointCPtr &in_cloud_ptr)
   /*Set the minimum and maximum allowable radius limits 
   for the model (applicable to models that estimate a radius) */
 
-  g_seg.setRadiusLimits (0, 0.1); //bad style
+  g_seg.setRadiusLimits (0.01, 0.1); //bad style
   g_seg.setInputCloud (g_cloud_filtered2);
   g_seg.setInputNormals (g_cloud_normals2);
 
@@ -577,16 +639,24 @@ cw1::segCylind (PointCPtr &in_cloud_ptr)
 
 ////////////////////////////////////////////////////////////////////////////////
 void
-cw1::findCylPose (PointCPtr &in_cloud_ptr)
+cw1::findCylPose (PointCPtr &in_cloud_ptr, geometry_msgs::Point::Ptr &out_position)
 {
   Eigen::Vector4f centroid_in;
-  pcl::compute3DCentroid(*in_cloud_ptr, centroid_in);
+  if (pcl::compute3DCentroid(*in_cloud_ptr, centroid_in) == 0)
+  {
+    printf("empty");
+    return;
+  }
+    
   
   g_cyl_pt_msg.header.frame_id = g_input_pc_frame_id;
   g_cyl_pt_msg.header.stamp = ros::Time (0);
   g_cyl_pt_msg.point.x = centroid_in[0];
   g_cyl_pt_msg.point.y = centroid_in[1];
   g_cyl_pt_msg.point.z = centroid_in[2];
+
+
+
   
   // Transform the point to new frame
   geometry_msgs::PointStamped g_cyl_pt_msg_out;
@@ -602,9 +672,52 @@ cw1::findCylPose (PointCPtr &in_cloud_ptr)
     ROS_ERROR ("Received a trasnformation exception: %s", ex.what());
   }
   
+  (*out_position).x = g_cyl_pt_msg_out.point.x;
+  (*out_position).y = g_cyl_pt_msg_out.point.y;
+  (*out_position).z = g_cyl_pt_msg_out.point.z;
+
   printf("x:%f\n",g_cyl_pt_msg_out.point.x);
   printf("y:%f\n",g_cyl_pt_msg_out.point.y);
   printf("z:%f\n",g_cyl_pt_msg_out.point.z);
-  
+
   return;
 }
+
+// std::string
+// cw1::findCylColor(PointCPtr &in_cloud_ptr, geometry_msgs::PointStamped &positon)
+// {
+//     //change basket position in world frame to camera frame
+//     geometry_msgs::PointStamped point_cameraframe;
+    
+//     try
+//     {
+//       listener_.transformPoint ("color",
+//                                 request.basket_locs[i],
+//                                 point_cameraframe);
+//     }
+//     catch (tf::TransformException& ex)
+//     {
+//       //ROS_WARN ("Received a trasnformation exception: %s", ex.what());
+//     }
+
+//     pcl::PointXYZRGBA pointT_cameraframe;
+//     pointT_cameraframe.x = point_cameraframe.point.x;
+//     pointT_cameraframe.y = point_cameraframe.point.y;
+//     pointT_cameraframe.z = point_cameraframe.point.z;
+
+//     int nearestIndex = getNearestPoint(*in_cloud_ptr, pointT_cameraframe);
+//     PointT pointT_est_cameraframe = (*in_cloud_ptr).points[nearestIndex]; 
+//     printf("r:%d,\n", pointT_est_cameraframe.r);
+//     printf("g:%d,\n", pointT_est_cameraframe.g);
+//     printf("b:%d,\n", pointT_est_cameraframe.b);
+
+
+//     if (pointT_est_cameraframe.r/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.b/pointT_est_cameraframe.g<5)
+//       return "red";
+//     else if (pointT_est_cameraframe.b/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.r/pointT_est_cameraframe.g<5)
+//       return "blue";
+//     else if (pointT_est_cameraframe.b/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.r/pointT_est_cameraframe.g>5)
+//       return "pink";
+//     else
+//       return "empty";
+// }

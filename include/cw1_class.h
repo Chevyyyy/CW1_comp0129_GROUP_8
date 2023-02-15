@@ -41,6 +41,7 @@ solution is contained within the cw1_team_<your_team_number> package */
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/search/kdtree.h>
 #include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_clusters.h>
 
 // Moveit includes
 #include <moveit/move_group_interface/move_group_interface.h>
@@ -113,7 +114,9 @@ public:
   void
   segCylind (PointCPtr &in_cloud_ptr);
   void
-  findCylPose (PointCPtr &in_cloud_ptr);
+  findCylPose (PointCPtr &in_cloud_ptr, geometry_msgs::PointPtr &out_position);
+  // std::string
+  // findCylColor(PointCPtr &in_cloud_ptr, geometry_msgs::PointStamped &positon);
   /* ----- class member variables ----- */
 
   ros::NodeHandle nh_;
@@ -165,6 +168,9 @@ public:
   PointCPtr g_cloud_cylinder; //Point cloud to hold cylinder points.
   //
   geometry_msgs::PointStamped g_cyl_pt_msg;
-};
+  //
+  geometry_msgs::Point::Ptr basket_pos1_ptr, basket_pos2_ptr ,basket_pos3_ptr;
 
+
+};
 #endif // end of include guard for CW1_CLASS_H_
