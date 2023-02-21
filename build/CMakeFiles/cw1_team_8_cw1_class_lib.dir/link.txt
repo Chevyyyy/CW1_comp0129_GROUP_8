@@ -1,0 +1,1 @@
+/usr/bin/g++ -fPIC   -g   -shared -Wl,-soname,libcw1_team_8_cw1_class_lib.so -o devel/lib/libcw1_team_8_cw1_class_lib.so CMakeFiles/cw1_team_8_cw1_class_lib.dir/src/cw1_class.cpp.o 

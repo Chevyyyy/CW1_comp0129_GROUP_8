@@ -114,7 +114,10 @@ public:
   void
   segCylind (PointCPtr &in_cloud_ptr);
   void
-  findCylPose (PointCPtr &in_cloud_ptr, geometry_msgs::PointPtr &out_position);
+  findCylPose (PointCPtr &in_cloud_ptr);
+  bool 
+  findColor (PointCPtr &in_cloud_ptr);
+ 
   // std::string
   // findCylColor(PointCPtr &in_cloud_ptr, geometry_msgs::PointStamped &positon);
   /* ----- class member variables ----- */
@@ -143,6 +146,11 @@ public:
 
   //
   ros::Publisher g_pub_cloud;
+  ros::Publisher g_pub_seg1;
+  ros::Publisher g_pub_seg2;
+  ros::Publisher g_pub_seg3;
+  ros::Publisher g_pub_seg4;
+  ros::Publisher g_pub_seg5;
   sensor_msgs::PointCloud2 g_cloud_filtered_msg;
   //
   pcl::PassThrough<PointT> g_pt; //Pass Through filter.
@@ -170,6 +178,7 @@ public:
   geometry_msgs::PointStamped g_cyl_pt_msg;
   //
   geometry_msgs::Point::Ptr basket_pos1_ptr, basket_pos2_ptr ,basket_pos3_ptr;
+
 
 
 };

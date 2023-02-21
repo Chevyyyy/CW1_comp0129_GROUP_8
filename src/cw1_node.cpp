@@ -24,7 +24,7 @@ int main(int argc, char **argv){
                   &cw1::pcCallBack,
                   &cw_class);
   // loop rate in Hz
-  ros::Rate rate(10);
+  ros::Rate rate(30);
 
   while (ros::ok()) {
 

@@ -30,6 +30,11 @@ cw1::cw1(ros::NodeHandle nh):
   nh_ = nh;
 
   g_pub_cloud = nh.advertise<sensor_msgs::PointCloud2> ("cw1/filtered_cloud", 1, true);
+  g_pub_seg1 = nh.advertise<sensor_msgs::PointCloud2> ("cw1/seg1", 1, true);
+  g_pub_seg2 = nh.advertise<sensor_msgs::PointCloud2> ("cw1/seg2", 1, true);
+  g_pub_seg3 = nh.advertise<sensor_msgs::PointCloud2> ("cw1/seg3", 1, true);
+  g_pub_seg4 = nh.advertise<sensor_msgs::PointCloud2> ("cw1/seg4", 1, true);
+  g_pub_seg5 = nh.advertise<sensor_msgs::PointCloud2> ("cw1/seg5", 1, true);
 
   // advertise solutions for coursework tasks
   t1_service_  = nh_.advertiseService("/task1_start", 
@@ -81,6 +86,8 @@ cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
   for (int i = 0; i < 4; i++) 
   {
     geometry_msgs::Point point_worldframe = request.basket_locs[i].point;
+    printf("x%f\n",point_worldframe.x);
+    printf("x%f\n",point_worldframe.y);
     bool success = arm_go(point_worldframe);
 
     //change basket position in world frame to camera frame
@@ -139,52 +146,26 @@ cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
 {
   /* function which should solve task 3 */
   ROS_INFO("The coursework solving callback for task 3 has been triggered");
-  bool success = true;
+ 
   geometry_msgs::Point point_worldframe;
-
-  // point_worldframe.x = 0.30;
-  // point_worldframe.y = 0.30;
-  // success = arm_go(point_worldframe);
-
-
-
-  // findCylPose (g_cloud_cylinder, basket_pos1_ptr);
-  // printf("x:%f\n",(*basket_pos1_ptr).x);
-  // printf("y:%f\n",(*basket_pos1_ptr).y);
-  // printf("z:%f\n",(*basket_pos1_ptr).z);
-
-  // point_worldframe.x = 0.60;
-  // point_worldframe.y = 0.30;
-  // success = arm_go(point_worldframe);
-  // findCylPose (g_cloud_cylinder);
-
-  // point_worldframe.x = 0.60;
-  // point_worldframe.y = -0.30;
-  // success = arm_go(point_worldframe);
-  // findCylPose (g_cloud_cylinder);
-
-  // point_worldframe.x = 0.30;
-  // point_worldframe.y = -0.30;
-  // success = arm_go(point_worldframe);
-  // findCylPose (g_cloud_cylinder);
 
   point_worldframe.x = 0.45;
   point_worldframe.y = 0;
-  success = arm_go(point_worldframe);
 
-
-  // go to check https://pcl.readthedocs.io/en/latest/cluster_extraction.html
+  arm_go(point_worldframe);
+ 
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<PointT> euclidean_cluster_extraction;
 
   pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>);
-  tree->setInputCloud (g_cloud_cylinder);
+  tree->setInputCloud (g_cloud_filtered);
 
-  euclidean_cluster_extraction.setClusterTolerance (0.02); // 2 cm
+
+  euclidean_cluster_extraction.setClusterTolerance (0.005); // 2 cm
   euclidean_cluster_extraction.setMinClusterSize (100);
-  euclidean_cluster_extraction.setMaxClusterSize (25000);
+  euclidean_cluster_extraction.setMaxClusterSize (2500000);
   euclidean_cluster_extraction.setSearchMethod (tree);
-  euclidean_cluster_extraction.setInputCloud (g_cloud_cylinder);
+  euclidean_cluster_extraction.setInputCloud (g_cloud_filtered);
   euclidean_cluster_extraction.extract (cluster_indices);
 
 
@@ -195,15 +176,37 @@ cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
     PointCPtr cloud_cluster (new PointC);
     for (const auto& idx : cluster.indices) 
     {
-      cloud_cluster->push_back((*g_cloud_cylinder)[idx]);
+      cloud_cluster->push_back((*g_cloud_filtered)[idx]);
     } 
     cloud_cluster->width = cloud_cluster->size ();
     cloud_cluster->height = 1;
     cloud_cluster->is_dense = true;
-    findCylPose (cloud_cluster, basket_pos1_ptr);
+    
  
     std::cout << "PointCloud representing the Cluster: " << cloud_cluster->size () << " data points." << std::endl;
     j++;
+    if(j==1)
+    {
+      pubFilteredPCMsg (g_pub_seg1, *cloud_cluster);
+      findCylPose(cloud_cluster);
+    }
+       if(j==2)
+    {
+      pubFilteredPCMsg (g_pub_seg2, *cloud_cluster);
+      findCylPose(cloud_cluster); 
+    }   if(j==3)
+    {
+      pubFilteredPCMsg (g_pub_seg3, *cloud_cluster);
+      findCylPose(cloud_cluster);
+    }   if(j==4)
+    {
+      pubFilteredPCMsg (g_pub_seg4, *cloud_cluster);
+      findCylPose(cloud_cluster); 
+    }   if(j==5)
+    {
+      pubFilteredPCMsg (g_pub_seg5, *cloud_cluster);
+      findCylPose(cloud_cluster);
+    }
 }
 
 
@@ -222,13 +225,9 @@ cw1::pcCallBack(const sensor_msgs::PointCloud2ConstPtr &cloud_input_msg)
 
   applyPT (g_cloud_ptr, g_cloud_filtered);
   
-  // Segment plane and cylinder
-  findNormals (g_cloud_filtered);
-  segPlane (g_cloud_filtered);
-  segCylind (g_cloud_filtered);
-  // findCylPose (g_cloud_cylinder);
+  pubFilteredPCMsg (g_pub_cloud, *g_cloud_filtered);
 
-  pubFilteredPCMsg (g_pub_cloud, *g_cloud_cylinder);
+
 }
 
 
@@ -483,7 +482,7 @@ cw1::arm_go(geometry_msgs::Point position)
   geometry_msgs::Pose place_pose;
   place_pose.position = position;
   place_pose.orientation = place_orientation;
-  place_pose.position.z = 0.55;
+  place_pose.position.z = 0.5;
   /* Now perform the place */
   bool success = true;
   // move the arm above the basket
@@ -521,6 +520,7 @@ cw1::pubFilteredPCMsg (ros::Publisher &pc_pub, PointC &pc)
 {
   // Publish the data
   pcl::toROSMsg(pc, g_cloud_filtered_msg);
+  g_cloud_filtered_msg.header.frame_id=g_input_pc_frame_id;
   pc_pub.publish (g_cloud_filtered_msg);
   
   return;
@@ -533,7 +533,7 @@ cw1::applyPT (PointCPtr &in_cloud_ptr, PointCPtr &out_cloud_ptr)
 {
   g_pt.setInputCloud (in_cloud_ptr);
   g_pt.setFilterFieldName ("z");
-  g_pt.setFilterLimits (g_pt_thrs_min, g_pt_thrs_max);
+  g_pt.setFilterLimits (0,0.42);
   g_pt.filter (*out_cloud_ptr);
   
   return;
@@ -639,7 +639,7 @@ cw1::segCylind (PointCPtr &in_cloud_ptr)
 
 ////////////////////////////////////////////////////////////////////////////////
 void
-cw1::findCylPose (PointCPtr &in_cloud_ptr, geometry_msgs::Point::Ptr &out_position)
+cw1::findCylPose (PointCPtr &in_cloud_ptr )
 {
   Eigen::Vector4f centroid_in;
   if (pcl::compute3DCentroid(*in_cloud_ptr, centroid_in) == 0)
@@ -671,10 +671,6 @@ cw1::findCylPose (PointCPtr &in_cloud_ptr, geometry_msgs::Point::Ptr &out_positi
   {
     ROS_ERROR ("Received a trasnformation exception: %s", ex.what());
   }
-  
-  (*out_position).x = g_cyl_pt_msg_out.point.x;
-  (*out_position).y = g_cyl_pt_msg_out.point.y;
-  (*out_position).z = g_cyl_pt_msg_out.point.z;
 
   printf("x:%f\n",g_cyl_pt_msg_out.point.x);
   printf("y:%f\n",g_cyl_pt_msg_out.point.y);
@@ -682,42 +678,7 @@ cw1::findCylPose (PointCPtr &in_cloud_ptr, geometry_msgs::Point::Ptr &out_positi
 
   return;
 }
-
-// std::string
-// cw1::findCylColor(PointCPtr &in_cloud_ptr, geometry_msgs::PointStamped &positon)
-// {
-//     //change basket position in world frame to camera frame
-//     geometry_msgs::PointStamped point_cameraframe;
-    
-//     try
-//     {
-//       listener_.transformPoint ("color",
-//                                 request.basket_locs[i],
-//                                 point_cameraframe);
-//     }
-//     catch (tf::TransformException& ex)
-//     {
-//       //ROS_WARN ("Received a trasnformation exception: %s", ex.what());
-//     }
-
-//     pcl::PointXYZRGBA pointT_cameraframe;
-//     pointT_cameraframe.x = point_cameraframe.point.x;
-//     pointT_cameraframe.y = point_cameraframe.point.y;
-//     pointT_cameraframe.z = point_cameraframe.point.z;
-
-//     int nearestIndex = getNearestPoint(*in_cloud_ptr, pointT_cameraframe);
-//     PointT pointT_est_cameraframe = (*in_cloud_ptr).points[nearestIndex]; 
-//     printf("r:%d,\n", pointT_est_cameraframe.r);
-//     printf("g:%d,\n", pointT_est_cameraframe.g);
-//     printf("b:%d,\n", pointT_est_cameraframe.b);
-
-
-//     if (pointT_est_cameraframe.r/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.b/pointT_est_cameraframe.g<5)
-//       return "red";
-//     else if (pointT_est_cameraframe.b/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.r/pointT_est_cameraframe.g<5)
-//       return "blue";
-//     else if (pointT_est_cameraframe.b/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.r/pointT_est_cameraframe.g>5)
-//       return "pink";
-//     else
-//       return "empty";
-// }
+bool cw1::findColor(PointCPtr &in_cloud_ptr)
+{
+  return true;
+}
