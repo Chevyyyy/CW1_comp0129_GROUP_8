@@ -269,9 +269,26 @@ int corner_count=1;
 }
   
   
-  // place and pick all the cube into baskets
+// place and pick all the cube into baskets
+for (int i=0;i<4;i++)
+{ 
+  geometry_msgs::Point pick_position = BasketAndCubeLocation[i+3];
+  pick_position.z=0.02;
+  pick(pick_position);
+  int CubeColor=BasketAndCubeColor[i+3];
+  int targetBasketIndex=0;
+  for(int k=0;k<3;k++) 
+  {
+    if(BasketAndCubeColor[k]==CubeColor)
+    {
+      targetBasketIndex=k;
+      break;
+    }
+  }
   
-  
+  geometry_msgs::Point place_position = BasketAndCubeLocation[targetBasketIndex];
+  place(place_position);
+} 
   return true;
 }
 
