@@ -20,10 +20,7 @@ cw1::cw1(ros::NodeHandle nh):
   g_cloud_normals2 (new pcl::PointCloud<pcl::Normal>),// segmentation
   g_inliers_cylinder (new pcl::PointIndices), // cylidenr seg
   g_coeff_cylinder (new pcl::ModelCoefficients), // cylinder coeff
-  g_cloud_cylinder (new PointC),// cylinder point cloud
-  basket_pos1_ptr (new geometry_msgs::Point), 
-  basket_pos2_ptr (new geometry_msgs::Point),
-  basket_pos3_ptr (new geometry_msgs::Point)
+  g_cloud_cylinder (new PointC)// cylinder point cloud
 
 {
   /* class constructor */
@@ -87,6 +84,24 @@ cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
   {
     int color_code=findColor(*g_cloud_filtered,request.basket_locs[i]);
     cout<<color_code<<endl;
+    switch (color_code)
+    {
+    case 1:
+      response.basket_colours.push_back("red");
+      break;
+    case 2:
+      response.basket_colours.push_back("blue");
+      break;
+    case 3:
+      response.basket_colours.push_back("pink");
+      break;
+    case 4:
+      response.basket_colours.push_back("empty");
+      break;
+       
+    default:
+      break;
+    }
     
   }
 
@@ -111,6 +126,7 @@ cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
   ROS_INFO("The coursework solving callback for task 3 has been triggered");
  
   geometry_msgs::Point point_worldframe;
+  geometry_msgs::PointStamped g_cyl_pt_msg_out;
 
   point_worldframe.x = 0.45;
   point_worldframe.y = 0;
@@ -125,13 +141,13 @@ cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
 
 
   euclidean_cluster_extraction.setClusterTolerance (0.005); // 2 cm
-  euclidean_cluster_extraction.setMinClusterSize (100);
+  euclidean_cluster_extraction.setMinClusterSize (200);
   euclidean_cluster_extraction.setMaxClusterSize (2500000);
   euclidean_cluster_extraction.setSearchMethod (tree);
   euclidean_cluster_extraction.setInputCloud (g_cloud_filtered);
   euclidean_cluster_extraction.extract (cluster_indices);
 
-
+// search cubes
   int j = 0;   
   for (const auto& cluster : cluster_indices)
   {
@@ -151,24 +167,37 @@ cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
     if(j==1)
     {
       pubFilteredPCMsg (g_pub_seg1, *cloud_cluster);
-      findCylPose(cloud_cluster);
+      findCylPose(cloud_cluster,g_cyl_pt_msg_out);
+      int color=findColor(*g_cloud_filtered,g_cyl_pt_msg_out,false);
+      BasketAndCubeLocation[3]=g_cyl_pt_msg_out.point;
+      BasketAndCubeColor[3]=color;
     }
-       if(j==2)
+    if(j==2)
     {
       pubFilteredPCMsg (g_pub_seg2, *cloud_cluster);
-      findCylPose(cloud_cluster); 
-    }   if(j==3)
+      findCylPose(cloud_cluster,g_cyl_pt_msg_out);
+      int color=findColor(*g_cloud_filtered,g_cyl_pt_msg_out,false);
+      BasketAndCubeLocation[4]=g_cyl_pt_msg_out.point;
+      BasketAndCubeColor[4]=color;
+ 
+    }
+    if(j==3)
     {
       pubFilteredPCMsg (g_pub_seg3, *cloud_cluster);
-      findCylPose(cloud_cluster);
-    }   if(j==4)
+      findCylPose(cloud_cluster,g_cyl_pt_msg_out);
+      int color=findColor(*g_cloud_filtered,g_cyl_pt_msg_out,false);
+      BasketAndCubeLocation[5]=g_cyl_pt_msg_out.point;
+      BasketAndCubeColor[5]=color;
+ 
+    } 
+    if(j==4)
     {
       pubFilteredPCMsg (g_pub_seg4, *cloud_cluster);
-      findCylPose(cloud_cluster); 
-    }   if(j==5)
-    {
-      pubFilteredPCMsg (g_pub_seg5, *cloud_cluster);
-      findCylPose(cloud_cluster);
+      findCylPose(cloud_cluster,g_cyl_pt_msg_out);
+      int color=findColor(*g_cloud_filtered,g_cyl_pt_msg_out,false);
+      BasketAndCubeLocation[6]=g_cyl_pt_msg_out.point;
+      BasketAndCubeColor[6]=color;
+ 
     }
 }
 
@@ -468,7 +497,8 @@ int
 cw1::getNearestPoint(const PointC& cloud, const pcl::PointXYZRGBA& position)
 {
   pcl::KdTreeFLANN<pcl::PointXYZRGBA> kdtree;
-  if(cloud.size()<100)
+  cout<<cloud.size()<<endl;
+  if(cloud.size()<5000)
   {
     return -1;
   }
@@ -483,14 +513,15 @@ cw1::getNearestPoint(const PointC& cloud, const pcl::PointXYZRGBA& position)
 }
 
 int
-cw1::findColor(const PointC& cloud, const geometry_msgs::PointStamped &loc)
+cw1::findColor(const PointC& cloud, const geometry_msgs::PointStamped &loc,bool move_arm)
 {
     
   // go to target point
-  
+  if(move_arm)
+  {
   geometry_msgs::Point point_worldframe = loc.point;
   arm_go(point_worldframe);
-
+  }
   // tansform to color frame 
   geometry_msgs::PointStamped point_cameraframe;
   
@@ -658,7 +689,7 @@ cw1::segCylind (PointCPtr &in_cloud_ptr)
 
 ////////////////////////////////////////////////////////////////////////////////
 void
-cw1::findCylPose (PointCPtr &in_cloud_ptr )
+cw1::findCylPose (PointCPtr &in_cloud_ptr,geometry_msgs::PointStamped &g_cyl_pt_msg_out)
 {
   Eigen::Vector4f centroid_in;
   if (pcl::compute3DCentroid(*in_cloud_ptr, centroid_in) == 0)
@@ -678,7 +709,6 @@ cw1::findCylPose (PointCPtr &in_cloud_ptr )
 
   
   // Transform the point to new frame
-  geometry_msgs::PointStamped g_cyl_pt_msg_out;
   try
   {
     listener_.transformPoint ("panda_link0",  // bad styling

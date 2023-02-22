@@ -114,9 +114,9 @@ public:
   void
   segCylind (PointCPtr &in_cloud_ptr);
   void
-  findCylPose (PointCPtr &in_cloud_ptr);
+  findCylPose (PointCPtr &in_cloud_ptr,geometry_msgs::PointStamped &g_cyl_pt_msg_out);
   int 
-  findColor(const PointC& cloud,const geometry_msgs::PointStamped &loc);
+  findColor(const PointC& cloud,const geometry_msgs::PointStamped &loc,bool move_arm=true);
 
  
   // std::string
@@ -178,7 +178,9 @@ public:
   //
   geometry_msgs::PointStamped g_cyl_pt_msg;
   //
-  geometry_msgs::Point::Ptr basket_pos1_ptr, basket_pos2_ptr ,basket_pos3_ptr;
+  geometry_msgs::Point BasketAndCubeLocation[7];
+  int BasketAndCubeColor[7];
+
 
 
 
