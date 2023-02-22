@@ -58,7 +58,7 @@ solution is contained within the cw1_team_<your_team_number> package */
 #include "cw1_world_spawner/Task3Service.h"
 
 // // include any services created in this package
-// #include "cw1_team_x/example.h"
+#include "string"
 
 typedef pcl::PointXYZRGBA PointT;
 typedef pcl::PointCloud<PointT> PointC;
@@ -115,8 +115,9 @@ public:
   segCylind (PointCPtr &in_cloud_ptr);
   void
   findCylPose (PointCPtr &in_cloud_ptr);
-  bool 
-  findColor (PointCPtr &in_cloud_ptr);
+  int 
+  findColor(const PointC& cloud,const geometry_msgs::PointStamped &loc);
+
  
   // std::string
   // findCylColor(PointCPtr &in_cloud_ptr, geometry_msgs::PointStamped &positon);

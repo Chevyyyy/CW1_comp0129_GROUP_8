@@ -5,7 +5,7 @@ solution is contained within the cw1_team_<your_team_number> package */
 
 #include <cw1_class.h>
 ///////////////////////////////////////////////////////////////////////////
-
+using namespace std;
 
 
 cw1::cw1(ros::NodeHandle nh):
@@ -85,46 +85,9 @@ cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
   response.basket_colours.clear();
   for (int i = 0; i < 4; i++) 
   {
-    geometry_msgs::Point point_worldframe = request.basket_locs[i].point;
-    printf("x%f\n",point_worldframe.x);
-    printf("x%f\n",point_worldframe.y);
-    bool success = arm_go(point_worldframe);
-
-    //change basket position in world frame to camera frame
-    geometry_msgs::PointStamped point_cameraframe;
+    int color_code=findColor(*g_cloud_filtered,request.basket_locs[i]);
+    cout<<color_code<<endl;
     
-    try
-    {
-      listener_.transformPoint ("color",
-                                request.basket_locs[i],
-                                point_cameraframe);
-    }
-    catch (tf::TransformException& ex)
-    {
-      //ROS_WARN ("Received a trasnformation exception: %s", ex.what());
-    }
-
-    pcl::PointXYZRGBA pointT_cameraframe;
-    pointT_cameraframe.x = point_cameraframe.point.x;
-    pointT_cameraframe.y = point_cameraframe.point.y;
-    pointT_cameraframe.z = point_cameraframe.point.z;
-
-    int nearestIndex = getNearestPoint(*g_cloud_ptr, pointT_cameraframe);
-    PointT pointT_est_cameraframe = (*g_cloud_ptr).points[nearestIndex]; 
-    printf("r:%d,\n", pointT_est_cameraframe.r);
-    printf("g:%d,\n", pointT_est_cameraframe.g);
-    printf("b:%d,\n", pointT_est_cameraframe.b);
-
-
-    if (pointT_est_cameraframe.r/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.b/pointT_est_cameraframe.g<5)
-      response.basket_colours.push_back("red");
-    else if (pointT_est_cameraframe.b/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.r/pointT_est_cameraframe.g<5)
-      response.basket_colours.push_back("blue");
-    else if (pointT_est_cameraframe.b/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.r/pointT_est_cameraframe.g>5)
-      response.basket_colours.push_back("pink");
-    else 
-      response.basket_colours.push_back("empty");
-
   }
 
   for (int i = 0; i < 4; i++)
@@ -505,13 +468,68 @@ int
 cw1::getNearestPoint(const PointC& cloud, const pcl::PointXYZRGBA& position)
 {
   pcl::KdTreeFLANN<pcl::PointXYZRGBA> kdtree;
-  kdtree.setInputCloud(cloud.makeShared());
+  if(cloud.size()<100)
+  {
+    return -1;
+  }
+    kdtree.setInputCloud(cloud.makeShared());
   int k = 1;
   std::vector<int> indices(k);
   std::vector<float> distances(k);
   kdtree.nearestKSearch(position, k, indices, distances);
 
+
   return indices[0];
+}
+
+int
+cw1::findColor(const PointC& cloud, const geometry_msgs::PointStamped &loc)
+{
+    
+  // go to target point
+  
+  geometry_msgs::Point point_worldframe = loc.point;
+  arm_go(point_worldframe);
+
+  // tansform to color frame 
+  geometry_msgs::PointStamped point_cameraframe;
+  
+  try
+  {
+    listener_.transformPoint ("color",
+                              loc,
+                              point_cameraframe);
+  }
+  catch (tf::TransformException& ex)
+  {
+    //ROS_WARN ("Received a trasnformation exception: %s", ex.what());
+  }
+
+  pcl::PointXYZRGBA pointPCL_cameraframe;
+  pointPCL_cameraframe.x = point_cameraframe.point.x;
+  pointPCL_cameraframe.y = point_cameraframe.point.y;
+  pointPCL_cameraframe.z = point_cameraframe.point.z;
+
+  // find the nearset point index
+  int nearestIndex = getNearestPoint(cloud, pointPCL_cameraframe);
+  if(nearestIndex==-1)
+  {
+    return 4;
+  }
+  PointT pointT_est_cameraframe = (cloud).points[nearestIndex]; 
+  printf("r:%d,\n", pointT_est_cameraframe.r);
+  printf("g:%d,\n", pointT_est_cameraframe.g);
+  printf("b:%d,\n", pointT_est_cameraframe.b);
+
+  // judge the color (red 1 blue 2 pink 3 empty 4 invaild 5)
+  if (pointT_est_cameraframe.r/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.b/pointT_est_cameraframe.g<5)
+    return 1; 
+  else if (pointT_est_cameraframe.b/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.r/pointT_est_cameraframe.g<5)
+    return 2; 
+  else if (pointT_est_cameraframe.b/pointT_est_cameraframe.g>5&&pointT_est_cameraframe.r/pointT_est_cameraframe.g>5)
+    return 3; 
+
+ 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -528,6 +546,7 @@ cw1::pubFilteredPCMsg (ros::Publisher &pc_pub, PointC &pc)
 
 
 ////////////////////////////////////////////////////////////////////////////////
+
 void
 cw1::applyPT (PointCPtr &in_cloud_ptr, PointCPtr &out_cloud_ptr)
 {
@@ -677,8 +696,4 @@ cw1::findCylPose (PointCPtr &in_cloud_ptr )
   printf("z:%f\n",g_cyl_pt_msg_out.point.z);
 
   return;
-}
-bool cw1::findColor(PointCPtr &in_cloud_ptr)
-{
-  return true;
 }
