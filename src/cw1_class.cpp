@@ -140,7 +140,7 @@ cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
   tree->setInputCloud (g_cloud_filtered);
 
 
-  euclidean_cluster_extraction.setClusterTolerance (0.005); // 2 cm
+  euclidean_cluster_extraction.setClusterTolerance (0.002); // 2 cm
   euclidean_cluster_extraction.setMinClusterSize (200);
   euclidean_cluster_extraction.setMaxClusterSize (2500000);
   euclidean_cluster_extraction.setSearchMethod (tree);
@@ -148,6 +148,7 @@ cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
   euclidean_cluster_extraction.extract (cluster_indices);
 
 // search cubes
+cout<<"search cubes"<<endl;
   int j = 0;   
   for (const auto& cluster : cluster_indices)
   {
@@ -200,8 +201,77 @@ cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
  
     }
 }
+// search baskets
+cout<<"search baskets"<<endl;
+int corner_count=1;
+  for(int k=1; k<4;k++)
+{
 
+  cout<<"k"<<k<<endl;
+  switch (corner_count)
+  {
+  case 1:
+    point_worldframe.x=0.2;
+    point_worldframe.y=0.33;
+    break;
+  case 2:
+    point_worldframe.x=0.2;
+    point_worldframe.y=-0.33;
+    break;
+  case 3:
+    point_worldframe.x=0.6;
+    point_worldframe.y=-0.33;
+    break;
+  case 4:
+    point_worldframe.x=0.6;
+    point_worldframe.y=0.33;
+    break;
+  default:
+    break;
+  }
+  arm_go(point_worldframe);
+  corner_count++;
+  cout<<(*g_cloud_filtered).size()<<endl;
+  if((*g_cloud_filtered).size()<5000)
+    {
+      k=k-1;
+    }
+  else
+  {
+  euclidean_cluster_extraction.setInputCloud (g_cloud_filtered);
+  euclidean_cluster_extraction.extract (cluster_indices);
 
+  for (const auto& cluster : cluster_indices)
+  {
+    PointCPtr cloud_cluster (new PointC);
+    for (const auto& idx : cluster.indices) 
+    {
+      cloud_cluster->push_back((*g_cloud_filtered)[idx]);
+    } 
+    cloud_cluster->width = cloud_cluster->size ();
+    
+    cloud_cluster->height = 1;
+    cloud_cluster->is_dense = true;
+    
+ 
+    std::cout << "PointCloud representing the Cluster: " << cloud_cluster->size () << " data points." << std::endl;
+
+      pubFilteredPCMsg (g_pub_seg5, *cloud_cluster);
+      findCylPose(cloud_cluster,g_cyl_pt_msg_out);
+      int color=findColor(*g_cloud_filtered,g_cyl_pt_msg_out,false);
+      cout<<"color"<<color<<endl;
+      
+      BasketAndCubeLocation[k-1]=g_cyl_pt_msg_out.point;
+      BasketAndCubeColor[k-1]=color;
+    break;
+  }
+  }
+}
+  
+  
+  // place and pick all the cube into baskets
+  
+  
   return true;
 }
 
