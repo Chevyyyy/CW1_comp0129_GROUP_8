@@ -1,7 +1,24 @@
-/* feel free to change any part of this file, or delete this file. In general,
-you can do whatever you want with this template code, including deleting it all
-and starting from scratch. The only requirment is to make sure your entire 
-solution is contained within the cw1_team_<your_team_number> package */
+// MIT License
+
+// Copyright (c) [2023] [Chevy WENG]
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 #ifndef CW1_CLASS_H_
 #define CW1_CLASS_H_
@@ -67,105 +84,170 @@ typedef PointC::Ptr PointCPtr;
 class cw1
 {
 public:
+  /*----- class member functions ----- */
 
-  /* ----- class member functions ----- */
-
-  // constructor
+  /// constructor
   cw1(ros::NodeHandle nh);
 
-  // service callbacks for tasks 1, 2, and 3
-  bool 
-  t1_callback(cw1_world_spawner::Task1Service::Request &request,
-    cw1_world_spawner::Task1Service::Response &response);
-  bool 
-  t2_callback(cw1_world_spawner::Task2Service::Request &request,
-    cw1_world_spawner::Task2Service::Response &response);
-  bool 
-  t3_callback(cw1_world_spawner::Task3Service::Request &request,
-    cw1_world_spawner::Task3Service::Response &response);
+  /// function to solve tasks 1
+  bool t1_callback(cw1_world_spawner::Task1Service::Request &request,
+                   cw1_world_spawner::Task1Service::Response &response);
+
+  /// function to solve tasks 2
+  bool t2_callback(cw1_world_spawner::Task2Service::Request &request,
+                   cw1_world_spawner::Task2Service::Response &response);
+
+  /// function to solve tasks 2
+  bool t3_callback(cw1_world_spawner::Task3Service::Request &request,
+                   cw1_world_spawner::Task3Service::Response &response);
+
+  /*******************************************************************************
+   * @brief the callback function for receving the point cloud function
+   *
+   * @param cloud_input_msg input cloud message from color frame
+   ******************************************************************************/
+  void pcCallBack(const sensor_msgs::PointCloud2ConstPtr &cloud_input_msg);
+
+  /*******************************************************************************
+   * @brief move the robot arm to target pose
+   *
+   * @param target_pose the target pose
+   * @return true if sucessful
+   ******************************************************************************/
+  bool moveArm(geometry_msgs::Pose target_pose);
+
+  /*******************************************************************************
+   * @brief move the gripper to a certain width
+   *
+   * @param width the width of the gripper
+   * @return true if sucessful
+   ******************************************************************************/
+  bool moveGripper(float width);
+
+  /*******************************************************************************
+   * @brief pickup the cube in certain position
+   *
+   * @param position the position of cube to be picked up
+   * @return true if sucessful
+   ******************************************************************************/
+  bool pick(geometry_msgs::Point position);
+
+  /*******************************************************************************
+   * @brief place the cube into a basket in certain position
+   *
+   * @param position the position of the basket
+   * @return true if sucessful
+   ******************************************************************************/
+  bool place(geometry_msgs::Point position);
+
+  /*******************************************************************************
+   * @brief move arm to a specicfic position
+   *
+   * @param position the target position of the arm
+   * @return true if sucessful
+   ******************************************************************************/
+  bool armGo(geometry_msgs::Point position);
+
+  /*******************************************************************************
+   * @brief get the nearset point's index from the cloud and target position
+   *
+   * @param cloud the point cloud data
+   * @param position the target position to be searched
+   * @return the index of the nearest point
+   ******************************************************************************/
+  int getNearestPoint(const PointC &cloud, const pcl::PointXYZRGBA &position);
+
+  /*******************************************************************************
+   * @brief publish the point cloud message using specific publisher
+   *
+   * @param pc_pub the point cloud publisher
+   * @param pc the point cloud
+   ******************************************************************************/
+  void pubFilteredPCMsg(ros::Publisher &pc_pub, PointC &pc);
+
+  /*******************************************************************************
+   * @brief apply a PT filter to the input point cloud
+   *
+   * @param in_cloud_ptr input point cloud to be filtered
+   * @param out_cloud_ptr output point cloud pointer
+   ******************************************************************************/
+  void applyPT(PointCPtr &in_cloud_ptr, PointCPtr *out_cloud_ptr);
+
+  /*******************************************************************************
+   * @brief find the center of the input point cloud
+   *
+   * @param in_cloud_ptr input cloud message from color frame
+   * @param pose_out ouput pose pointer
+   ******************************************************************************/
+  void findCenter(PointCPtr &in_cloud_ptr, geometry_msgs::PointStamped *pose_out);
+
+  /*******************************************************************************
+   * @brief find the color of the a position in the given point cloud
+   *
+   * @param cloud input cloud
+   * @param loc position to be searched
+   * @param move_arm if ture, move arm above the loc to calculate the more accurate color
+   * @return the color (1 for red, 2 for blue, 3 for pink, 4 for empty and -1 for error)
+   ******************************************************************************/
+  int findColor(const PointC &cloud, const geometry_msgs::PointStamped &loc, bool move_arm = true);
+
+  /*******************************************************************************
+   * @brief search all the cubes and store their locs and colors 
+   * 
+   * @return true if sucessful
+   ******************************************************************************/
+  bool searchCubesTask3();
+
+  /*******************************************************************************
+   * @brief search all the baskets and store their locs and colors 
+   * 
+   * @return true if sucessful
+   ******************************************************************************/
+  bool searchBasketsTask3();
   
-  // added
-  void
-  pcCallBack (const sensor_msgs::PointCloud2ConstPtr& cloud_input_msg);
-  bool 
-  moveArm(geometry_msgs::Pose target_pose);
-  bool
-  moveGripper(float width);
-  bool
-  pick(geometry_msgs::Point position);
-  bool
-  place(geometry_msgs::Point position);
-  bool
-  armGo(geometry_msgs::Point position);
-  int
-  getNearestPoint(const PointC& cloud, const pcl::PointXYZRGBA& position);
-  void
-  pubFilteredPCMsg (ros::Publisher &pc_pub, PointC &pc);
-  void
-  applyPT (PointCPtr &in_cloud_ptr, PointCPtr &out_cloud_ptr);
-  void
-  findCylPose (PointCPtr &in_cloud_ptr,geometry_msgs::PointStamped &pose_out);
-  int 
-  findColor(const PointC& cloud,const geometry_msgs::PointStamped &loc,bool move_arm=true);
+  /*******************************************************************************
+   * @brief pick and place all the cubes accroding to the searching results 
+   * 
+   * @return true if sucessful
+   ******************************************************************************/
+  bool pickPlaceCubes();
+ 
+
 
   /* ----- class member variables ----- */
 
-  ros::NodeHandle nh_;
-  ros::ServiceServer t1_service_;
-  ros::ServiceServer t2_service_;
-  ros::ServiceServer t3_service_;
+  ros::NodeHandle nh_;            /// node handle
+  ros::ServiceServer t1_service_; /// service of task1
+  ros::ServiceServer t2_service_; /// service of task2
+  ros::ServiceServer t3_service_; /// service of task3
 
-  // added for task 1
-  moveit::planning_interface::MoveGroupInterface arm_group_{"panda_arm"};
-  moveit::planning_interface::MoveGroupInterface hand_group_{"hand"};
-  moveit::planning_interface::PlanningSceneInterface planning_scene_interface_;
-  float gripper_open_ = 80e-3;
-  float gripper_closed_ = 0.0;
+  moveit::planning_interface::MoveGroupInterface arm_group_{"panda_arm"}; /// arm group ("panda_arm") in moveit
+  moveit::planning_interface::MoveGroupInterface hand_group_{"hand"};     /// arm group ("hand") in moveit
 
-  double angle_offset_ = 3.14159 / 4.0;
-  double z_offset_ = 0.125;
-  double approach_distance_ = 0.1;
+  float gripper_open_ = 80e-3;          /// safe value for the open size of gripper
+  float gripper_closed_ = 0.0;          /// safe value for the closed size of gripper
+  double angle_offset_ = 3.14159 / 4.0; /// angle offset for grasping orentation
 
-  //added for task 2
-  std::string g_frame_id;
-  pcl::PCLPointCloud2 g_pcl_pc;
-  PointCPtr g_cloud_ptr;
-  tf::TransformListener listener_;
+  double z_offset_ = 0.125;        /// z-axis offset for the grasping pose
+  double approach_distance_ = 0.1; /// the pre-grasping distance
 
-  //
-  ros::Publisher g_pub_cloud;
-  ros::Publisher g_pub_seg1;
-  ros::Publisher g_pub_seg2;
-  ros::Publisher g_pub_seg3;
-  ros::Publisher g_pub_seg4;
-  ros::Publisher g_pub_seg5;
-  //
-  pcl::PassThrough<PointT> g_pt; //Pass Through filter.
-  PointCPtr g_cloud_filtered;
-  double g_pt_thrs_min, g_pt_thrs_max;
-  //
-  pcl::NormalEstimation<PointT, pcl::Normal> g_ne;
-  pcl::search::KdTree<PointT>::Ptr g_tree;
-  double g_k_nn;
-  pcl::PointCloud<pcl::Normal>::Ptr g_cloud_normals;
-  //   
-  pcl::SACSegmentationFromNormals<PointT, pcl::Normal> g_seg;  // SAC segmentation.
-  pcl::PointIndices::Ptr g_inliers_plane; // Point indices for plane
-  pcl::ModelCoefficients::Ptr g_coeff_plane; // Model coefficients for the plane segmentation.
-  pcl::ExtractIndices<PointT> g_extract_pc; //Extract point cloud indices.
-  PointCPtr g_cloud_plane; // Point cloud to hold plane
-  PointCPtr g_cloud_filtered2;
-  pcl::ExtractIndices<pcl::Normal> g_extract_normals; //Extract point cloud normal indices.
-  pcl::PointCloud<pcl::Normal>::Ptr g_cloud_normals2; //Cloud of normals
-  //
-  pcl::PointIndices::Ptr g_inliers_cylinder; //Point indices for cylinder
-  pcl::ModelCoefficients::Ptr g_coeff_cylinder; //Model coefficients for the culinder segmentation
-  PointCPtr g_cloud_cylinder; //Point cloud to hold cylinder points.
-  //
-  geometry_msgs::PointStamped pose_color;
-  //
-  geometry_msgs::Point BasketAndCubeLocation[7];
-  int BasketAndCubeColor[7];
+  std::string fram_id_;            /// frame id for the recevied cloud
+  pcl::PCLPointCloud2 pcl_pc_;     /// point cloud data in PCL
+  PointCPtr cloud_ptr_;            /// point cloud data pointer
+  tf::TransformListener listener_; /// TF listener
 
+  ros::Publisher pub_cloud_; /// for publishing the filtered cloud
+  ros::Publisher pub_seg1_;  /// for publishing the seg of the first cube
+  ros::Publisher pub_seg2_;  /// for publishing the seg of the second cube
+  ros::Publisher pub_seg3_;  /// for publishing the seg of the third cube
+  ros::Publisher pub_seg4_;  /// for publishing the seg of the forth cube
+  ros::Publisher pub_seg5_;  /// for publishing the seg of basket
+
+  pcl::PassThrough<PointT> pt_; /// Pass Through filter.
+  PointCPtr cloud_filtered_;    /// filtered cloud pointer
+
+  geometry_msgs::PointStamped pose_color;   /// the pose of the seg to be found the center
+  geometry_msgs::Point basket_cube_locs[7]; /// store the locations of all the cubes and baskets
+  int basket_cube_colors[7];                /// store the colors of all the cubes and baskets
 };
 #endif // end of include guard for CW1_CLASS_H_
