@@ -1,11 +1,4 @@
-/* feel free to change any part of this file, or delete this file. In general,
-you can do whatever you want with this template code, including deleting it all
-and starting from scratch. The only requirment is to make sure your entire 
-solution is contained within the cw1_team_<your_team_number> package */
-
 #include <cw1_class.h>
-///////////////////////////////////////////////////////////////////////////
-using namespace std;
 
 
 cw1::cw1(ros::NodeHandle nh):
@@ -126,12 +119,12 @@ cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
   ROS_INFO("The coursework solving callback for task 3 has been triggered");
  
   geometry_msgs::Point point_worldframe;
-  geometry_msgs::PointStamped g_cyl_pt_msg_out;
+  geometry_msgs::PointStamped pose_out;
 
   point_worldframe.x = 0.45;
   point_worldframe.y = 0;
 
-  arm_go(point_worldframe);
+  armGo(point_worldframe);
  
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<PointT> euclidean_cluster_extraction;
@@ -168,35 +161,35 @@ cout<<"search cubes"<<endl;
     if(j==1)
     {
       pubFilteredPCMsg (g_pub_seg1, *cloud_cluster);
-      findCylPose(cloud_cluster,g_cyl_pt_msg_out);
-      int color=findColor(*g_cloud_filtered,g_cyl_pt_msg_out,false);
-      BasketAndCubeLocation[3]=g_cyl_pt_msg_out.point;
+      findCylPose(cloud_cluster,pose_out);
+      int color=findColor(*g_cloud_filtered,pose_out,false);
+      BasketAndCubeLocation[3]=pose_out.point;
       BasketAndCubeColor[3]=color;
     }
     if(j==2)
     {
       pubFilteredPCMsg (g_pub_seg2, *cloud_cluster);
-      findCylPose(cloud_cluster,g_cyl_pt_msg_out);
-      int color=findColor(*g_cloud_filtered,g_cyl_pt_msg_out,false);
-      BasketAndCubeLocation[4]=g_cyl_pt_msg_out.point;
+      findCylPose(cloud_cluster,pose_out);
+      int color=findColor(*g_cloud_filtered,pose_out,false);
+      BasketAndCubeLocation[4]=pose_out.point;
       BasketAndCubeColor[4]=color;
  
     }
     if(j==3)
     {
       pubFilteredPCMsg (g_pub_seg3, *cloud_cluster);
-      findCylPose(cloud_cluster,g_cyl_pt_msg_out);
-      int color=findColor(*g_cloud_filtered,g_cyl_pt_msg_out,false);
-      BasketAndCubeLocation[5]=g_cyl_pt_msg_out.point;
+      findCylPose(cloud_cluster,pose_out);
+      int color=findColor(*g_cloud_filtered,pose_out,false);
+      BasketAndCubeLocation[5]=pose_out.point;
       BasketAndCubeColor[5]=color;
  
     } 
     if(j==4)
     {
       pubFilteredPCMsg (g_pub_seg4, *cloud_cluster);
-      findCylPose(cloud_cluster,g_cyl_pt_msg_out);
-      int color=findColor(*g_cloud_filtered,g_cyl_pt_msg_out,false);
-      BasketAndCubeLocation[6]=g_cyl_pt_msg_out.point;
+      findCylPose(cloud_cluster,pose_out);
+      int color=findColor(*g_cloud_filtered,pose_out,false);
+      BasketAndCubeLocation[6]=pose_out.point;
       BasketAndCubeColor[6]=color;
  
     }
@@ -229,7 +222,7 @@ int corner_count=1;
   default:
     break;
   }
-  arm_go(point_worldframe);
+  armGo(point_worldframe);
   corner_count++;
   cout<<(*g_cloud_filtered).size()<<endl;
   if((*g_cloud_filtered).size()<5000)
@@ -257,11 +250,11 @@ int corner_count=1;
     std::cout << "PointCloud representing the Cluster: " << cloud_cluster->size () << " data points." << std::endl;
 
       pubFilteredPCMsg (g_pub_seg5, *cloud_cluster);
-      findCylPose(cloud_cluster,g_cyl_pt_msg_out);
-      int color=findColor(*g_cloud_filtered,g_cyl_pt_msg_out,false);
+      findCylPose(cloud_cluster,pose_out);
+      int color=findColor(*g_cloud_filtered,pose_out,false);
       cout<<"color"<<color<<endl;
       
-      BasketAndCubeLocation[k-1]=g_cyl_pt_msg_out.point;
+      BasketAndCubeLocation[k-1]=pose_out.point;
       BasketAndCubeColor[k-1]=color;
     break;
   }
@@ -297,7 +290,7 @@ void
 cw1::pcCallBack(const sensor_msgs::PointCloud2ConstPtr &cloud_input_msg)
 {
   // Extract inout point cloud info
-  g_input_pc_frame_id = cloud_input_msg->header.frame_id;
+  g_frame_id = cloud_input_msg->header.frame_id;
   // Convert to PCL data type
   pcl_conversions::toPCL (*cloud_input_msg, g_pcl_pc);
   pcl::fromPCLPointCloud2 (g_pcl_pc, *g_cloud_ptr);
@@ -363,65 +356,6 @@ cw1::moveGripper(float width)
   hand_group_.move();
 
   return success;
-}
-
-
-void
-cw1::addCollisionObject(std::string object_name,
-  geometry_msgs::Point centre, geometry_msgs::Vector3 dimensions,
-  geometry_msgs::Quaternion orientation)
-{
-  /* add a collision object in RViz and the MoveIt planning scene */
-
-  // create a collision object message, and a vector of these messages
-  moveit_msgs::CollisionObject collision_object;
-  std::vector<moveit_msgs::CollisionObject> object_vector;
-  
-  // input header information
-  collision_object.id = object_name;
-  collision_object.header.frame_id = "panda_link0";
-
-  // define the primitive and its dimensions
-  collision_object.primitives.resize(1);
-  collision_object.primitives[0].type = collision_object.primitives[0].BOX;
-  collision_object.primitives[0].dimensions.resize(3);
-  collision_object.primitives[0].dimensions[0] = dimensions.x;
-  collision_object.primitives[0].dimensions[1] = dimensions.y;
-  collision_object.primitives[0].dimensions[2] = dimensions.z;
-
-  // define the pose of the collision object
-  collision_object.primitive_poses.resize(1);
-  collision_object.primitive_poses[0].position.x = centre.x;
-  collision_object.primitive_poses[0].position.y = centre.y;
-  collision_object.primitive_poses[0].position.z = centre.z;
-  collision_object.primitive_poses[0].orientation = orientation;
-
-  // define that we will be adding this collision object 
-  // hint: what about collision_object.REMOVE?
-  collision_object.operation = collision_object.ADD;
-
-  // add the collision object to the vector, then apply to planning scene
-  object_vector.push_back(collision_object);
-  planning_scene_interface_.applyCollisionObjects(object_vector);
-
-  return;
-}
-
-void
-cw1::removeCollisionObject(std::string object_name)
-{
-  /* remove a collision object from the planning scene */
-
-  moveit_msgs::CollisionObject collision_object;
-  std::vector<moveit_msgs::CollisionObject> object_vector;
-  
-  // input the name and specify we want it removed
-  collision_object.id = object_name;
-  collision_object.operation = collision_object.REMOVE;
-
-  // apply this collision object removal to the scene
-  object_vector.push_back(collision_object);
-  planning_scene_interface_.applyCollisionObjects(object_vector);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -545,7 +479,7 @@ cw1::place(geometry_msgs::Point position)
 }
 
 bool
-cw1::arm_go(geometry_msgs::Point position)
+cw1::armGo(geometry_msgs::Point position)
 {
   /* This function move arm to a specicfic position. */
 
@@ -607,7 +541,7 @@ cw1::findColor(const PointC& cloud, const geometry_msgs::PointStamped &loc,bool 
   if(move_arm)
   {
   geometry_msgs::Point point_worldframe = loc.point;
-  arm_go(point_worldframe);
+  armGo(point_worldframe);
   }
   // tansform to color frame 
   geometry_msgs::PointStamped point_cameraframe;
@@ -655,8 +589,9 @@ void
 cw1::pubFilteredPCMsg (ros::Publisher &pc_pub, PointC &pc)
 {
   // Publish the data
+  sensor_msgs::PointCloud2 g_cloud_filtered_msg;
   pcl::toROSMsg(pc, g_cloud_filtered_msg);
-  g_cloud_filtered_msg.header.frame_id=g_input_pc_frame_id;
+  g_cloud_filtered_msg.header.frame_id=g_frame_id;
   pc_pub.publish (g_cloud_filtered_msg);
   
   return;
@@ -676,107 +611,10 @@ cw1::applyPT (PointCPtr &in_cloud_ptr, PointCPtr &out_cloud_ptr)
   return;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-void
-cw1::findNormals (PointCPtr &in_cloud_ptr)
-{
-  // Estimate point normals
-  g_ne.setInputCloud (in_cloud_ptr);
-  g_ne.setSearchMethod (g_tree);
-  g_ne.setKSearch (g_k_nn);
-  g_ne.compute (*g_cloud_normals);
-  
-  return;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 void
-cw1::segPlane (PointCPtr &in_cloud_ptr)
-{
-  // Create the segmentation object for the planar model
-  // and set all the params
-  g_seg.setOptimizeCoefficients (true);
-  g_seg.setModelType (pcl::SACMODEL_NORMAL_PLANE);
-
-  /*Set the relative weight (between 0 and 1) to give to the angular
-  distance (0 to pi/2) between point normals and the plane normal.*/ 
-  g_seg.setNormalDistanceWeight (0); //bad style
-
-  g_seg.setMethodType (pcl::SAC_RANSAC);
-
-  //Set the maximum number of iterations before giving up. 
-  g_seg.setMaxIterations (100);//bad style
-
-  //Distance to the model threshold (user given parameter). 
-  g_seg.setDistanceThreshold (0.03); //bad style
-
-  g_seg.setInputCloud (in_cloud_ptr);
-  g_seg.setInputNormals (g_cloud_normals);
-  // Obtain the plane inliers and coefficients
-  g_seg.segment (*g_inliers_plane, *g_coeff_plane);
-  
-  // Extract the planar inliers from the input cloud
-  g_extract_pc.setInputCloud (in_cloud_ptr);
-  g_extract_pc.setIndices (g_inliers_plane);
-  g_extract_pc.setNegative (false);
-  
-  // Write the planar inliers to disk
-  g_extract_pc.filter (*g_cloud_plane);
-  
-  // Remove the planar inliers, extract the rest
-  g_extract_pc.setNegative (true);
-  g_extract_pc.filter (*g_cloud_filtered2);
-  g_extract_normals.setNegative (true);
-  g_extract_normals.setInputCloud (g_cloud_normals);
-  g_extract_normals.setIndices (g_inliers_plane);
-  g_extract_normals.filter (*g_cloud_normals2);
-
-  //ROS_INFO_STREAM ("Plane coefficients: " << *g_coeff_plane);
-  ROS_INFO_STREAM ("PointCloud representing the planar component: "
-                   << g_cloud_plane->size ()
-                   << " data points.");
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void
-cw1::segCylind (PointCPtr &in_cloud_ptr)
-{
-  // Create the segmentation object for cylinder segmentation
-  // and set all the parameters
-  g_seg.setOptimizeCoefficients (true);
-  g_seg.setModelType (pcl::SACMODEL_CYLINDER);
-  g_seg.setMethodType (pcl::SAC_RANSAC);
-
-  g_seg.setNormalDistanceWeight (0); //bad style
-  g_seg.setMaxIterations (500); //bad style
-  g_seg.setDistanceThreshold (0.03); //bad style
-  
-  /*Set the minimum and maximum allowable radius limits 
-  for the model (applicable to models that estimate a radius) */
-
-  g_seg.setRadiusLimits (0.01, 0.1); //bad style
-  g_seg.setInputCloud (g_cloud_filtered2);
-  g_seg.setInputNormals (g_cloud_normals2);
-
-  // Obtain the cylinder inliers and coefficients
-  g_seg.segment (*g_inliers_cylinder, *g_coeff_cylinder);
-  
-  // Write the cylinder inliers to disk
-  g_extract_pc.setInputCloud (g_cloud_filtered2);
-  g_extract_pc.setIndices (g_inliers_cylinder);
-  g_extract_pc.setNegative (false);
-  g_extract_pc.filter (*g_cloud_cylinder);
-  
-  ROS_INFO_STREAM ("PointCloud representing the cylinder component: "
-                   << g_cloud_cylinder->size ()
-                   << " data points.");
-  
-  return;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void
-cw1::findCylPose (PointCPtr &in_cloud_ptr,geometry_msgs::PointStamped &g_cyl_pt_msg_out)
+cw1::findCylPose (PointCPtr &in_cloud_ptr,geometry_msgs::PointStamped &pose_out)
 {
   Eigen::Vector4f centroid_in;
   if (pcl::compute3DCentroid(*in_cloud_ptr, centroid_in) == 0)
@@ -786,11 +624,11 @@ cw1::findCylPose (PointCPtr &in_cloud_ptr,geometry_msgs::PointStamped &g_cyl_pt_
   }
     
   
-  g_cyl_pt_msg.header.frame_id = g_input_pc_frame_id;
-  g_cyl_pt_msg.header.stamp = ros::Time (0);
-  g_cyl_pt_msg.point.x = centroid_in[0];
-  g_cyl_pt_msg.point.y = centroid_in[1];
-  g_cyl_pt_msg.point.z = centroid_in[2];
+  pose_color.header.frame_id = g_frame_id;
+  pose_color.header.stamp = ros::Time (0);
+  pose_color.point.x = centroid_in[0];
+  pose_color.point.y = centroid_in[1];
+  pose_color.point.z = centroid_in[2];
 
 
 
@@ -799,8 +637,8 @@ cw1::findCylPose (PointCPtr &in_cloud_ptr,geometry_msgs::PointStamped &g_cyl_pt_
   try
   {
     listener_.transformPoint ("panda_link0",  // bad styling
-                                g_cyl_pt_msg,
-                                g_cyl_pt_msg_out);
+                                pose_color,
+                                pose_out);
     //ROS_INFO ("trying transform...");
   }
   catch (tf::TransformException& ex)
@@ -808,9 +646,9 @@ cw1::findCylPose (PointCPtr &in_cloud_ptr,geometry_msgs::PointStamped &g_cyl_pt_
     ROS_ERROR ("Received a trasnformation exception: %s", ex.what());
   }
 
-  printf("x:%f\n",g_cyl_pt_msg_out.point.x);
-  printf("y:%f\n",g_cyl_pt_msg_out.point.y);
-  printf("z:%f\n",g_cyl_pt_msg_out.point.z);
+  printf("x:%f\n",pose_out.point.x);
+  printf("y:%f\n",pose_out.point.y);
+  printf("z:%f\n",pose_out.point.z);
 
   return;
 }

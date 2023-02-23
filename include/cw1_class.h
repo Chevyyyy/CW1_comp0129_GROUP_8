@@ -3,7 +3,6 @@ you can do whatever you want with this template code, including deleting it all
 and starting from scratch. The only requirment is to make sure your entire 
 solution is contained within the cw1_team_<your_team_number> package */
 
-// include guards, prevent .h file being defined multiple times (linker error)
 #ifndef CW1_CLASS_H_
 #define CW1_CLASS_H_
 
@@ -57,8 +56,9 @@ solution is contained within the cw1_team_<your_team_number> package */
 #include "cw1_world_spawner/Task2Service.h"
 #include "cw1_world_spawner/Task3Service.h"
 
-// // include any services created in this package
+// include any services created in this package
 #include "string"
+using namespace std;
 
 typedef pcl::PointXYZRGBA PointT;
 typedef pcl::PointCloud<PointT> PointC;
@@ -91,16 +91,12 @@ public:
   moveArm(geometry_msgs::Pose target_pose);
   bool
   moveGripper(float width);
-  void
-  addCollisionObject(std::string object_name,geometry_msgs::Point centre, geometry_msgs::Vector3 dimensions,geometry_msgs::Quaternion orientation);
-  void
-  removeCollisionObject(std::string object_name);
   bool
   pick(geometry_msgs::Point position);
   bool
   place(geometry_msgs::Point position);
   bool
-  arm_go(geometry_msgs::Point position);
+  armGo(geometry_msgs::Point position);
   int
   getNearestPoint(const PointC& cloud, const pcl::PointXYZRGBA& position);
   void
@@ -108,19 +104,10 @@ public:
   void
   applyPT (PointCPtr &in_cloud_ptr, PointCPtr &out_cloud_ptr);
   void
-  findNormals (PointCPtr &in_cloud_ptr);
-  void
-  segPlane (PointCPtr &in_cloud_ptr);
-  void
-  segCylind (PointCPtr &in_cloud_ptr);
-  void
-  findCylPose (PointCPtr &in_cloud_ptr,geometry_msgs::PointStamped &g_cyl_pt_msg_out);
+  findCylPose (PointCPtr &in_cloud_ptr,geometry_msgs::PointStamped &pose_out);
   int 
   findColor(const PointC& cloud,const geometry_msgs::PointStamped &loc,bool move_arm=true);
 
- 
-  // std::string
-  // findCylColor(PointCPtr &in_cloud_ptr, geometry_msgs::PointStamped &positon);
   /* ----- class member variables ----- */
 
   ros::NodeHandle nh_;
@@ -140,7 +127,7 @@ public:
   double approach_distance_ = 0.1;
 
   //added for task 2
-  std::string g_input_pc_frame_id;
+  std::string g_frame_id;
   pcl::PCLPointCloud2 g_pcl_pc;
   PointCPtr g_cloud_ptr;
   tf::TransformListener listener_;
@@ -152,7 +139,6 @@ public:
   ros::Publisher g_pub_seg3;
   ros::Publisher g_pub_seg4;
   ros::Publisher g_pub_seg5;
-  sensor_msgs::PointCloud2 g_cloud_filtered_msg;
   //
   pcl::PassThrough<PointT> g_pt; //Pass Through filter.
   PointCPtr g_cloud_filtered;
@@ -176,13 +162,10 @@ public:
   pcl::ModelCoefficients::Ptr g_coeff_cylinder; //Model coefficients for the culinder segmentation
   PointCPtr g_cloud_cylinder; //Point cloud to hold cylinder points.
   //
-  geometry_msgs::PointStamped g_cyl_pt_msg;
+  geometry_msgs::PointStamped pose_color;
   //
   geometry_msgs::Point BasketAndCubeLocation[7];
   int BasketAndCubeColor[7];
-
-
-
 
 };
 #endif // end of include guard for CW1_CLASS_H_
