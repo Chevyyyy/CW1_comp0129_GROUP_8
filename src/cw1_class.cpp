@@ -73,21 +73,33 @@ bool cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
   for (int i = 0; i < 4; i++)
   {
     // find the color for given location
-    int color_code = findColor(*cloud_filtered_, request.basket_locs[i]);
+    int color_code = findColor(*cloud_filtered_, request.basket_locs[i],true,12000);
     // decode the color index to string
     switch (color_code)
     {
     case 1:
       response.basket_colours.push_back("red");
+      ROS_INFO("####################");
+      ROS_INFO("Color of basket: red");
+      ROS_INFO("####################");
       break;
     case 2:
       response.basket_colours.push_back("blue");
+      ROS_INFO("####################");
+      ROS_INFO("Color of basket: blue");
+      ROS_INFO("####################");
       break;
     case 3:
       response.basket_colours.push_back("pink");
+      ROS_INFO("####################");
+      ROS_INFO("Color of basket: pink");
+      ROS_INFO("####################");
       break;
     case 4:
       response.basket_colours.push_back("empty");
+      ROS_INFO("####################");
+      ROS_INFO("Color of basket: empty");
+      ROS_INFO("####################");
       break;
 
     default:
@@ -348,7 +360,7 @@ int cw1::getNearestPoint(const PointC &cloud, const pcl::PointXYZRGBA &position)
   return indices[0];
 }
 
-int cw1::findColor(const PointC &cloud, const geometry_msgs::PointStamped &loc, bool move_arm)
+int cw1::findColor(const PointC &cloud, const geometry_msgs::PointStamped &loc, bool move_arm,int cloud_num_thresh)
 {
 
   // go to target point

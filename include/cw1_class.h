@@ -187,9 +187,10 @@ public:
    * @param cloud input cloud
    * @param loc position to be searched
    * @param move_arm if ture, move arm above the loc to calculate the more accurate color
+   * @param cloud_num_thresh the threshold to judge a cloud is empty or not 
    * @return the color (1 for red, 2 for blue, 3 for pink, 4 for empty and -1 for error)
    ******************************************************************************/
-  int findColor(const PointC &cloud, const geometry_msgs::PointStamped &loc, bool move_arm = true);
+  int findColor(const PointC &cloud, const geometry_msgs::PointStamped &loc, bool move_arm = true, int cloud_num_thresh=2000);
 
   /*******************************************************************************
    * @brief search all the cubes and store their locs and colors 
