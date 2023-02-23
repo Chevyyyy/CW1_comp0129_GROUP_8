@@ -2,4 +2,6 @@ Doxyfile
 html
 latex
 .vscode
+build
+
 

@@ -1,8 +1,0 @@
-prefix=/home/chevy/comp0129_s23_robot/src/cw1_team_8/build/devel
-
-Name: cw1_team_8
-Description: Description of cw1_team_8
-Version: 0.0.0
-Cflags: -I/home/chevy/comp0129_s23_robot/src/cw1_team_8/build/devel/include
-Libs: -L${prefix}/lib 
-Requires: message_runtime cw1_world_spawner
