@@ -23,6 +23,9 @@ Terminal 2
 > rosservice call task 3
 ```
 
+## Document 
+see document\_cw1\_team\_8.pdf
+
 ## License
 LICENSE: MIT.  See LICENSE.txt
 

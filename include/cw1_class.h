@@ -75,7 +75,6 @@
 
 // include any services created in this package
 #include "string"
-using namespace std;
 
 typedef pcl::PointXYZRGBA PointT;
 typedef pcl::PointCloud<PointT> PointC;
@@ -195,23 +194,25 @@ public:
   /*******************************************************************************
    * @brief search all the cubes and store their locs and colors 
    * 
-   * @return true if sucessful
+   * @return the number of cubes (boxes) 
    ******************************************************************************/
-  bool searchCubesTask3();
+  int searchCubesTask3();
 
   /*******************************************************************************
    * @brief search all the baskets and store their locs and colors 
    * 
-   * @return true if sucessful
+   * @return the number of baskets 
    ******************************************************************************/
-  bool searchBasketsTask3();
+  int searchBasketsTask3();
   
   /*******************************************************************************
    * @brief pick and place all the cubes accroding to the searching results 
    * 
+   * @param n_cube the number of cubes
+   * @param n_basket the number of baskets
    * @return true if sucessful
    ******************************************************************************/
-  bool pickPlaceCubes();
+  bool pickPlaceCubes(int n_cube, int n_basket);
  
 
 
@@ -238,17 +239,15 @@ public:
   tf::TransformListener listener_; /// TF listener
 
   ros::Publisher pub_cloud_; /// for publishing the filtered cloud
-  ros::Publisher pub_seg1_;  /// for publishing the seg of the first cube
-  ros::Publisher pub_seg2_;  /// for publishing the seg of the second cube
-  ros::Publisher pub_seg3_;  /// for publishing the seg of the third cube
-  ros::Publisher pub_seg4_;  /// for publishing the seg of the forth cube
-  ros::Publisher pub_seg5_;  /// for publishing the seg of basket
+  ros::Publisher pub_seg_;  /// for publishing the seg of the first cube
 
   pcl::PassThrough<PointT> pt_; /// Pass Through filter.
   PointCPtr cloud_filtered_;    /// filtered cloud pointer
 
   geometry_msgs::PointStamped pose_color;   /// the pose of the seg to be found the center
-  geometry_msgs::Point basket_cube_locs[7]; /// store the locations of all the cubes and baskets
-  int basket_cube_colors[7];                /// store the colors of all the cubes and baskets
+  geometry_msgs::Point basket_locs[4]; /// store the locations of all the baskets
+  geometry_msgs::Point cube_locs[100]; /// store the locations of all the cubes
+  int basket_colors[4];                /// store the colors of all the baskets
+  int cube_colors[100];                /// store the colors of all the cubes
 };
 #endif // end of include guard for CW1_CLASS_H_
