@@ -28,12 +28,14 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "cw1_solution_node");
   ros::NodeHandle nh;
 
-  // create an instance of the cw1 class
-  cw1 cw_class(nh);
-
   // MoveIt! requirement for non-blocking group.move()
   ros::AsyncSpinner spinner(1);
   spinner.start();
+
+  ros::Duration(1, 0).sleep();
+
+  // create an instance of the cw1 class
+  cw1 cw_class(nh);
 
   // Create a ROS subscriber for the input point cloud
   ros::Subscriber sub_cloud =
@@ -42,7 +44,7 @@ int main(int argc, char **argv)
                    &cw1::pcCallBack,
                    &cw_class);
   // loop rate in Hz
-  ros::Rate rate(30);
+  ros::Rate rate(100);
 
   while (ros::ok())
   {

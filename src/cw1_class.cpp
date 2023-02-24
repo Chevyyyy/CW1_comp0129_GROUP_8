@@ -38,6 +38,12 @@ cw1::cw1(ros::NodeHandle nh) : cloud_ptr_(new PointC),
                                      &cw1::t2_callback, this);
   t3_service_ = nh_.advertiseService("/task3_start",
                                      &cw1::t3_callback, this);
+  
+  // avoid touching the falling cubes
+  geometry_msgs::Point point_worldframe;
+  point_worldframe.x = 0.45;
+  point_worldframe.y = 0.0;
+  armGo(point_worldframe);
   ROS_INFO("cw1 class initialised");
 }
 
@@ -69,7 +75,8 @@ bool cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
   for (int i = 0; i < 4; i++)
   {
     // find the color for given location
-    int color_code = findColor(*cloud_filtered_, request.basket_locs[i], true, 12000);
+    int color_code = findColor(*cloud_filtered_, request.basket_locs[i], true, 2000);
+    ROS_WARN("%d",(*cloud_filtered_).size());
     // decode the color index to string
     switch (color_code)
     {
@@ -113,8 +120,6 @@ bool cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
 {
   /* function which should solve task 3 */
 
-  ROS_INFO("The coursework solving callback for task 3 has been triggered");
-
   // search cubes
   int n_cube = searchCubesTask3();
 
@@ -123,6 +128,8 @@ bool cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
 
   // place and pick all the cube into baskets
   pickPlaceCubes(n_cube, n_basket);
+
+  ROS_INFO("The coursework solving callback for task 3 has been triggered");
 
   return true;
 }
@@ -291,9 +298,10 @@ bool cw1::place(geometry_msgs::Point position)
   geometry_msgs::Pose place_pose;
   place_pose.position = position;
   place_pose.orientation = place_orientation;
-  place_pose.position.z = 0.4;
+  place_pose.position.z = 0.5;
 
   /* Now perform the place */
+  
 
   bool success = true;
 
@@ -324,7 +332,7 @@ bool cw1::armGo(geometry_msgs::Point position)
   geometry_msgs::Pose place_pose;
   place_pose.position = position;
   place_pose.orientation = place_orientation;
-  place_pose.position.z = 0.5;
+  place_pose.position.z = 0.45;
   /* Now perform the place */
   bool success = true;
   // move the arm above the basket
@@ -342,7 +350,7 @@ int cw1::getNearestPoint(const PointC &cloud, const pcl::PointXYZRGBA &position)
   // create the kdtree
   pcl::KdTreeFLANN<pcl::PointXYZRGBA> kdtree;
   // if the cloud is empty return -1
-  if (cloud.size() < 5000)
+  if (cloud.size() < 2000)
   {
     return -1;
   }
@@ -370,7 +378,7 @@ int cw1::findColor(const PointC &cloud, const geometry_msgs::PointStamped &loc, 
 
   try
   {
-    listener_.transformPoint("color",loc,point_cameraframe);
+    listener_.transformPoint("color", loc, point_cameraframe);
   }
   catch (tf::TransformException &ex)
   {
@@ -417,7 +425,7 @@ void cw1::applyPT(PointCPtr &in_cloud_ptr, PointCPtr *out_cloud_ptr)
 {
   pt_.setInputCloud(in_cloud_ptr);
   pt_.setFilterFieldName("z");
-  pt_.setFilterLimits(0, 0.42);
+  pt_.setFilterLimits(0, 0.37);
   pt_.filter(**out_cloud_ptr);
 
   return;
@@ -440,7 +448,7 @@ void cw1::findCenter(PointCPtr &in_cloud_ptr, geometry_msgs::PointStamped *pose_
   // Transform the point to new frame
   try
   {
-    listener_.transformPoint("panda_link0",pose_color,*pose_out);
+    listener_.transformPoint("panda_link0", pose_color, *pose_out);
   }
   catch (tf::TransformException &ex)
   {
@@ -466,7 +474,7 @@ int cw1::searchCubesTask3()
   tree->setInputCloud(cloud_filtered_);
 
   pcl::EuclideanClusterExtraction<PointT> euclidean_cluster_extraction;
-  euclidean_cluster_extraction.setClusterTolerance(0.002); // 2 cm
+  euclidean_cluster_extraction.setClusterTolerance(0.01); // 2 cm
   euclidean_cluster_extraction.setMinClusterSize(200);
   euclidean_cluster_extraction.setMaxClusterSize(2500000);
   euclidean_cluster_extraction.setSearchMethod(tree);
@@ -487,6 +495,8 @@ int cw1::searchCubesTask3()
     cloud_cluster->width = cloud_cluster->size();
     cloud_cluster->height = 1;
     cloud_cluster->is_dense = true;
+
+    ROS_WARN("%d",cloud_cluster->width);
 
     // publish the seg
     pubFilteredPCMsg(pub_seg_, *cloud_cluster);
@@ -514,8 +524,8 @@ int cw1::searchBasketsTask3()
   tree->setInputCloud(cloud_filtered_);
   // initialize the cluster extration
   pcl::EuclideanClusterExtraction<PointT> euclidean_cluster_extraction;
-  euclidean_cluster_extraction.setClusterTolerance(0.001); // 2 cm
-  euclidean_cluster_extraction.setMinClusterSize(4000);
+  euclidean_cluster_extraction.setClusterTolerance(0.01); // 2 cm
+  euclidean_cluster_extraction.setMinClusterSize(2000);
   euclidean_cluster_extraction.setMaxClusterSize(2500000);
   euclidean_cluster_extraction.setSearchMethod(tree);
   euclidean_cluster_extraction.setInputCloud(cloud_filtered_);
@@ -529,20 +539,20 @@ int cw1::searchBasketsTask3()
     switch (k)
     {
     case 0:
-      point_worldframe.x = 0.25;
-      point_worldframe.y = 0.4;
+      point_worldframe.x = 0.28;
+      point_worldframe.y = 0.36;
       break;
     case 1:
-      point_worldframe.x = 0.25;
-      point_worldframe.y = -0.4;
+      point_worldframe.x = 0.28;
+      point_worldframe.y = -0.36;
       break;
     case 2:
       point_worldframe.x = 0.63;
-      point_worldframe.y = -0.4;
+      point_worldframe.y = -0.36;
       break;
     case 3:
       point_worldframe.x = 0.63;
-      point_worldframe.y = 0.4;
+      point_worldframe.y = 0.36;
       break;
     default:
       break;
@@ -562,13 +572,14 @@ int cw1::searchBasketsTask3()
 
       cloud_cluster->height = 1;
       cloud_cluster->is_dense = true;
+      ROS_WARN("%d",cloud_cluster->width);
       // publish the seg
       pubFilteredPCMsg(pub_seg_, *cloud_cluster);
       // find the center
       findCenter(cloud_cluster, &pose_out);
       // find the color
       int color = findColor(*cloud_filtered_, pose_out, false);
-      // store the above things 
+      // store the above things
       basket_locs[basket_counter] = pose_out.point;
       basket_colors[basket_counter] = color;
       basket_counter++;
@@ -585,9 +596,7 @@ bool cw1::pickPlaceCubes(int n_cube, int n_basket)
     // loop over all the cubes
     geometry_msgs::Point pick_position = cube_locs[i];
     // adjust the pick poistion (z)
-    pick_position.z = 0.02;
-    // pick the cube
-    pick(pick_position);
+    pick_position.z = 0.015;
     int cube_color = cube_colors[i];
     int target_basket_index = 0;
     // find the same color basket and read the loc of it
@@ -607,14 +616,17 @@ bool cw1::pickPlaceCubes(int n_cube, int n_basket)
     if (target_basket_index != -1)
     {
       geometry_msgs::Point place_position = basket_locs[target_basket_index];
+      // pick the cube
+      pick(pick_position);
+
       // place the cube
       place(place_position);
     }
     else
     {
-      ROS_INFO("############################################");
-      ROS_INFO("NO match color for the cube, skip it!!!!!!!");
-      ROS_INFO("############################################");
+      ROS_WARN("############################################");
+      ROS_WARN("NO match color for the cube, skip it!!!!!!!");
+      ROS_WARN("############################################");
     }
   }
   return true;
