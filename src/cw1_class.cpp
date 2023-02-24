@@ -77,8 +77,9 @@ bool cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
     // find the color for given location
     applyPT(cloud_ptr_, &cloud_filtered_,0.45);
     pubFilteredPCMsg(pub_cloud_, *cloud_filtered_);
-    int color_code = findColor(*cloud_filtered_, request.basket_locs[i], true, 6500);
+    int color_code = findColor(*cloud_filtered_, request.basket_locs[i], true, 1500);
     ROS_WARN("%d",(*cloud_filtered_).size());
+    ROS_WARN("%d",color_code);
     // decode the color index to string
     switch (color_code)
     {
@@ -144,7 +145,7 @@ void cw1::pcCallBack(const sensor_msgs::PointCloud2ConstPtr &cloud_input_msg)
   pcl_conversions::toPCL(*cloud_input_msg, pcl_pc_);
   pcl::fromPCLPointCloud2(pcl_pc_, *cloud_ptr_);
 
-  applyPT(cloud_ptr_, &cloud_filtered_);
+  applyPT(cloud_ptr_, &cloud_filtered_,0.32);
 
   pubFilteredPCMsg(pub_cloud_, *cloud_filtered_);
 }
@@ -340,7 +341,7 @@ bool cw1::armGo(geometry_msgs::Point position,double position_z)
   // move the arm above the basket
   success *= moveArm(place_pose);
 
-  ros::Duration(0, 10000000).sleep();
+  ros::Duration(2,0).sleep();
 
   ROS_INFO("Arm reach the specific position");
 
@@ -476,8 +477,8 @@ int cw1::searchCubesTask3()
 
   pcl::EuclideanClusterExtraction<PointT> euclidean_cluster_extraction;
   euclidean_cluster_extraction.setClusterTolerance(0.002); 
-  euclidean_cluster_extraction.setMinClusterSize(2000);
-  euclidean_cluster_extraction.setMaxClusterSize(2500000);
+  euclidean_cluster_extraction.setMinClusterSize(1500);
+  euclidean_cluster_extraction.setMaxClusterSize(6000);
   euclidean_cluster_extraction.setSearchMethod(tree);
   euclidean_cluster_extraction.setInputCloud(cloud_filtered_);
 
@@ -504,7 +505,8 @@ int cw1::searchCubesTask3()
     // find the center of the seg
     findCenter(cloud_cluster, &pose_out);
     // find the color of the seg
-    int color = findColor(*cloud_filtered_, pose_out, false,2000);
+    int color = findColor(*cloud_cluster, pose_out, false,1500);
+    ROS_WARN("%d",color);
     // store the above things
     cube_locs[cube_counter] = pose_out.point;
     cube_colors[cube_counter] = color;
@@ -525,8 +527,8 @@ int cw1::searchBasketsTask3()
   tree->setInputCloud(cloud_filtered_);
   // initialize the cluster extration
   pcl::EuclideanClusterExtraction<PointT> euclidean_cluster_extraction;
-  euclidean_cluster_extraction.setClusterTolerance(0.01); // 2 cm
-  euclidean_cluster_extraction.setMinClusterSize(3000);
+  euclidean_cluster_extraction.setClusterTolerance(0.005); // 2 cm
+  euclidean_cluster_extraction.setMinClusterSize(1000);
   euclidean_cluster_extraction.setMaxClusterSize(2500000);
   euclidean_cluster_extraction.setSearchMethod(tree);
   euclidean_cluster_extraction.setInputCloud(cloud_filtered_);
@@ -558,7 +560,7 @@ int cw1::searchBasketsTask3()
     default:
       break;
     }
-    armGo(point_worldframe);
+    armGo(point_worldframe,0.4);
 
     euclidean_cluster_extraction.extract(cluster_indices);
 
@@ -579,7 +581,8 @@ int cw1::searchBasketsTask3()
       // find the center
       findCenter(cloud_cluster, &pose_out);
       // find the color
-      int color = findColor(*cloud_filtered_, pose_out, false);
+      int color = findColor(*cloud_filtered_, pose_out, false,1000);
+      ROS_WARN("%d",color);
       // store the above things
       basket_locs[basket_counter] = pose_out.point;
       basket_colors[basket_counter] = color;
