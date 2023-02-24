@@ -75,7 +75,9 @@ bool cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
   for (int i = 0; i < 4; i++)
   {
     // find the color for given location
-    int color_code = findColor(*cloud_filtered_, request.basket_locs[i], true, 2000);
+    applyPT(cloud_ptr_, &cloud_filtered_,0.45);
+    pubFilteredPCMsg(pub_cloud_, *cloud_filtered_);
+    int color_code = findColor(*cloud_filtered_, request.basket_locs[i], true, 6500);
     ROS_WARN("%d",(*cloud_filtered_).size());
     // decode the color index to string
     switch (color_code)
@@ -298,7 +300,7 @@ bool cw1::place(geometry_msgs::Point position)
   geometry_msgs::Pose place_pose;
   place_pose.position = position;
   place_pose.orientation = place_orientation;
-  place_pose.position.z = 0.5;
+  place_pose.position.z = 0.35;
 
   /* Now perform the place */
   
@@ -316,7 +318,7 @@ bool cw1::place(geometry_msgs::Point position)
   return true;
 }
 
-bool cw1::armGo(geometry_msgs::Point position)
+bool cw1::armGo(geometry_msgs::Point position,double position_z)
 {
   /* This function move arm to a specicfic position. */
 
@@ -332,13 +334,13 @@ bool cw1::armGo(geometry_msgs::Point position)
   geometry_msgs::Pose place_pose;
   place_pose.position = position;
   place_pose.orientation = place_orientation;
-  place_pose.position.z = 0.45;
+  place_pose.position.z = position_z;
   /* Now perform the place */
   bool success = true;
   // move the arm above the basket
   success *= moveArm(place_pose);
 
-  ros::Duration(1, 0).sleep();
+  ros::Duration(0, 10000000).sleep();
 
   ROS_INFO("Arm reach the specific position");
 
@@ -349,11 +351,7 @@ int cw1::getNearestPoint(const PointC &cloud, const pcl::PointXYZRGBA &position)
 {
   // create the kdtree
   pcl::KdTreeFLANN<pcl::PointXYZRGBA> kdtree;
-  // if the cloud is empty return -1
-  if (cloud.size() < 2000)
-  {
-    return -1;
-  }
+
   // get the nearest point and return
   kdtree.setInputCloud(cloud.makeShared());
   int k = 1;
@@ -390,13 +388,14 @@ int cw1::findColor(const PointC &cloud, const geometry_msgs::PointStamped &loc, 
   pointPCL_cameraframe.y = point_cameraframe.point.y;
   pointPCL_cameraframe.z = point_cameraframe.point.z;
 
-  // find the nearset point index
-  int nearestIndex = getNearestPoint(cloud, pointPCL_cameraframe);
-  // if the cloud is empty return 4(empty)
-  if (nearestIndex == -1)
+  // if the cloud is empty return 4 (empty)
+  if (cloud.size() < cloud_num_thresh)
   {
     return 4;
   }
+  // find the nearset point index
+  int nearestIndex = getNearestPoint(cloud, pointPCL_cameraframe);
+
   PointT pointT_est_cameraframe = (cloud).points[nearestIndex];
 
   // judge the color (red 1 blue 2 pink 3 empty 4 )
@@ -421,11 +420,11 @@ void cw1::pubFilteredPCMsg(ros::Publisher &pc_pub, PointC &pc)
   return;
 }
 
-void cw1::applyPT(PointCPtr &in_cloud_ptr, PointCPtr *out_cloud_ptr)
+void cw1::applyPT(PointCPtr &in_cloud_ptr, PointCPtr *out_cloud_ptr,double z_lim)
 {
   pt_.setInputCloud(in_cloud_ptr);
   pt_.setFilterFieldName("z");
-  pt_.setFilterLimits(0, 0.37);
+  pt_.setFilterLimits(0, z_lim);
   pt_.filter(**out_cloud_ptr);
 
   return;
@@ -467,15 +466,17 @@ int cw1::searchCubesTask3()
   // move to a position that can see all the cubes
   point_worldframe.x = 0.45;
   point_worldframe.y = 0;
-  armGo(point_worldframe);
+  armGo(point_worldframe,0.5);
+  applyPT(cloud_ptr_, &cloud_filtered_,0.42);
+  pubFilteredPCMsg(pub_cloud_,*cloud_filtered_);
 
   // initialize the cluster extration
   pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
   tree->setInputCloud(cloud_filtered_);
 
   pcl::EuclideanClusterExtraction<PointT> euclidean_cluster_extraction;
-  euclidean_cluster_extraction.setClusterTolerance(0.01); // 2 cm
-  euclidean_cluster_extraction.setMinClusterSize(200);
+  euclidean_cluster_extraction.setClusterTolerance(0.002); 
+  euclidean_cluster_extraction.setMinClusterSize(2000);
   euclidean_cluster_extraction.setMaxClusterSize(2500000);
   euclidean_cluster_extraction.setSearchMethod(tree);
   euclidean_cluster_extraction.setInputCloud(cloud_filtered_);
@@ -503,7 +504,7 @@ int cw1::searchCubesTask3()
     // find the center of the seg
     findCenter(cloud_cluster, &pose_out);
     // find the color of the seg
-    int color = findColor(*cloud_filtered_, pose_out, false);
+    int color = findColor(*cloud_filtered_, pose_out, false,2000);
     // store the above things
     cube_locs[cube_counter] = pose_out.point;
     cube_colors[cube_counter] = color;
@@ -525,7 +526,7 @@ int cw1::searchBasketsTask3()
   // initialize the cluster extration
   pcl::EuclideanClusterExtraction<PointT> euclidean_cluster_extraction;
   euclidean_cluster_extraction.setClusterTolerance(0.01); // 2 cm
-  euclidean_cluster_extraction.setMinClusterSize(2000);
+  euclidean_cluster_extraction.setMinClusterSize(3000);
   euclidean_cluster_extraction.setMaxClusterSize(2500000);
   euclidean_cluster_extraction.setSearchMethod(tree);
   euclidean_cluster_extraction.setInputCloud(cloud_filtered_);
@@ -539,20 +540,20 @@ int cw1::searchBasketsTask3()
     switch (k)
     {
     case 0:
-      point_worldframe.x = 0.28;
-      point_worldframe.y = 0.36;
+      point_worldframe.x = 0.31;
+      point_worldframe.y = 0.34;
       break;
     case 1:
-      point_worldframe.x = 0.28;
-      point_worldframe.y = -0.36;
+      point_worldframe.x = 0.31;
+      point_worldframe.y = -0.34;
       break;
     case 2:
-      point_worldframe.x = 0.63;
-      point_worldframe.y = -0.36;
+      point_worldframe.x = 0.59;
+      point_worldframe.y = -0.34;
       break;
     case 3:
-      point_worldframe.x = 0.63;
-      point_worldframe.y = 0.36;
+      point_worldframe.x = 0.59;
+      point_worldframe.y = 0.34;
       break;
     default:
       break;
@@ -598,6 +599,10 @@ bool cw1::pickPlaceCubes(int n_cube, int n_basket)
     // adjust the pick poistion (z)
     pick_position.z = 0.015;
     int cube_color = cube_colors[i];
+      ROS_WARN("%d",n_cube);
+      ROS_WARN("%d",n_basket);
+      ROS_WARN("color%d",cube_color);
+      ROS_WARN("i:%d",i);
     int target_basket_index = 0;
     // find the same color basket and read the loc of it
     for (int k = 0; k < n_basket; k++)

@@ -143,9 +143,10 @@ public:
    * @brief move arm to a specicfic position
    *
    * @param position the target position of the arm
+   * @param position_z the target position_z of the arm
    * @return true if sucessful
    ******************************************************************************/
-  bool armGo(geometry_msgs::Point position);
+  bool armGo(geometry_msgs::Point position,double position_z=0.45);
 
   /*******************************************************************************
    * @brief get the nearset point's index from the cloud and target position
@@ -169,8 +170,9 @@ public:
    *
    * @param in_cloud_ptr input point cloud to be filtered
    * @param out_cloud_ptr output point cloud pointer
+   * @param z_lim the pass through limit 
    ******************************************************************************/
-  void applyPT(PointCPtr &in_cloud_ptr, PointCPtr *out_cloud_ptr);
+  void applyPT(PointCPtr &in_cloud_ptr, PointCPtr *out_cloud_ptr, double z_lim=0.37);
 
   /*******************************************************************************
    * @brief find the center of the input point cloud
