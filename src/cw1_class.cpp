@@ -78,8 +78,6 @@ bool cw1::t2_callback(cw1_world_spawner::Task2Service::Request &request,
     applyPT(cloud_ptr_, &cloud_filtered_,0.45);
     pubFilteredPCMsg(pub_cloud_, *cloud_filtered_);
     int color_code = findColor(*cloud_filtered_, request.basket_locs[i], true, 1500);
-    ROS_WARN("%d",(*cloud_filtered_).size());
-    ROS_WARN("%d",color_code);
     // decode the color index to string
     switch (color_code)
     {
@@ -131,6 +129,13 @@ bool cw1::t3_callback(cw1_world_spawner::Task3Service::Request &request,
 
   // place and pick all the cube into baskets
   pickPlaceCubes(n_cube, n_basket);
+
+  // search cubes agian and continue if still have cubes on the ground
+  while(n_cube=searchCubesTask3())
+  {
+    pickPlaceCubes(n_cube, n_basket);
+  }
+
 
   ROS_INFO("The coursework solving callback for task 3 has been triggered");
 
@@ -498,7 +503,6 @@ int cw1::searchCubesTask3()
     cloud_cluster->height = 1;
     cloud_cluster->is_dense = true;
 
-    ROS_WARN("%d",cloud_cluster->width);
 
     // publish the seg
     pubFilteredPCMsg(pub_seg_, *cloud_cluster);
@@ -506,7 +510,6 @@ int cw1::searchCubesTask3()
     findCenter(cloud_cluster, &pose_out);
     // find the color of the seg
     int color = findColor(*cloud_cluster, pose_out, false,1500);
-    ROS_WARN("%d",color);
     // store the above things
     cube_locs[cube_counter] = pose_out.point;
     cube_colors[cube_counter] = color;
@@ -575,14 +578,12 @@ int cw1::searchBasketsTask3()
 
       cloud_cluster->height = 1;
       cloud_cluster->is_dense = true;
-      ROS_WARN("%d",cloud_cluster->width);
       // publish the seg
       pubFilteredPCMsg(pub_seg_, *cloud_cluster);
       // find the center
       findCenter(cloud_cluster, &pose_out);
       // find the color
       int color = findColor(*cloud_filtered_, pose_out, false,1000);
-      ROS_WARN("%d",color);
       // store the above things
       basket_locs[basket_counter] = pose_out.point;
       basket_colors[basket_counter] = color;
@@ -602,10 +603,6 @@ bool cw1::pickPlaceCubes(int n_cube, int n_basket)
     // adjust the pick poistion (z)
     pick_position.z = 0.015;
     int cube_color = cube_colors[i];
-      ROS_WARN("%d",n_cube);
-      ROS_WARN("%d",n_basket);
-      ROS_WARN("color%d",cube_color);
-      ROS_WARN("i:%d",i);
     int target_basket_index = 0;
     // find the same color basket and read the loc of it
     for (int k = 0; k < n_basket; k++)
